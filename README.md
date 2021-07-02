@@ -1,5 +1,5 @@
 # Along_Mini_T12
-基于STC8G2K64S4处理器的智能恒温烙铁
+基于STC8G2K64S4处理器的智能恒温烙铁，**编程环境：Keil5 C51.**
 
 官方网址：www.alongxii.xyz
 
