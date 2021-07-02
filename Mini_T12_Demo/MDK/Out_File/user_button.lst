@@ -1,0 +1,436 @@
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_BUTTON
+OBJECT MODULE PLACED IN .\Out_File\user_button.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\User\user_button.c LARGE OPTIMIZE(9,SPEED) BROWSE I
+                    -NCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\US
+                    -ER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\user_butto
+                    -n.lst) TABS(2) OBJECT(.\Out_File\user_button.obj)
+
+line level    source
+
+   1          /*
+   2          ------------------------------------------------------------
+   3          官方网址：www.alongxii.xyz
+   4          软件作者：Along
+   5          QQ：1259306443
+   6          邮箱：alongxii@outlook.com/1259306443@qq.com
+   7          硬件作者：LI JIAN
+   8          QQ：1557731308
+   9          邮箱：jian19990317@qq.com
+  10          源码底层采用逐飞科技开源库，在此基础上进行二次开发，代码全部开源至Github。
+  11          商用前请联系作者Along进行相关咨询。
+  12          ------------------------------------------------------------
+  13          2021.7.2
+  14          源码最后更新至V1.3.1版本
+  15          功能包括：
+  16          1.参数整定
+  17          2.屏幕设置
+  18          3.基础设置
+  19          4.休眠时间设置
+  20          5.温度阈值设置
+  21          6.阻焊校准设置
+  22          7.电源协议管理设置
+  23          8.菜单UI设置
+  24          具体设置使用方法在www.alongxii.xyz中有详细介绍。
+  25          后续网址可能会更替为www.alongxii.com/www.alongxii.cn。
+  26          ------------------------------------------------------------
+  27          源码相关文件介绍：
+  28          *user_gpio.h:引脚映射的头文件，可根据自己电路的布局修改引脚映射，除ADC接口需采用P1口以外，
+  29          IIC、SPI接口均采用模拟接口，理论上可任意映射。
+  30          main.c:此文件中主要提供软件初始化配置，及菜单等功能程序调用。
+  31          user_menu.c:此文件用于菜单UI使用。
+  32          user_adc.c:此文件用于ADC信号采集，电压值转换、温度转换。
+  33          烙铁温度读取采用分段一次函数，依次对每个100度分段的adc值进行运算得到对应温度值。
+  34          电压采集使用电阻分压。
+  35          user_pid.c:此文件采用位置式PID进行控温，如有更先进控制方案，可在此文件中修改控制函数。
+  36          user_button.c:此文件提供相关按键中断函数与操作逻辑函数，功能调用方式。
+  37          ------------------------------------------------------------
+  38          */
+  39          #include "headfile.h"
+  40          #include "user_button.h"
+  41          
+  42          uint8 BEEP_CONT = 0;
+  43          uint8 PWM_CONT = 0;
+  44          int iron_ad = 0;
+  45          
+  46          int16 key_hold_ms = 0;
+  47          int16 sleep_cont = 0;
+  48          int16 sleep_second = 0;//自动休眠时间
+  49          int16 olde_off_cont = 0;
+  50          int16 oled_off_second = 0;//自动关机时间
+  51          int16 shutdown_cont = 0;
+  52          int16 shutdown_second = 0;//自动关机时间
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 2   
+
+  53          
+  54          uint8  mode_flag = 0;//模式标志位
+  55          uint8  enter_flag = 0;
+  56          uint8  quit_flag = 0;//退出标志位
+  57          
+  58          uint8  up_flag = 0;//上键
+  59          uint8  up_short_flag = 0;//上键单击
+  60          uint8  up_long_flag = 0;//上键长按
+  61          
+  62          uint8  down_flag = 0;//下键
+  63          uint8  down_short_flag = 0;//下键单击
+  64          uint8  down_long_flag = 0;//下键长按
+  65          
+  66          uint8  sleep_flag = 0;
+  67          uint8  sleep_short_flag = 0;
+  68          uint8  sleep_long_flah = 0;
+  69          
+  70          uint8 auto_power_off_flag = 0;
+  71          uint8 oled_off_on_flag = 0;//oled熄屏计时开启
+  72          uint8 auto_oled_off_flag = 0;
+  73          uint8 oled_handle_flag = 0;
+  74          uint8 oled_light_flag = 0;
+  75          
+  76          
+  77          int8 SLEEP_INIT_FLAG = 0;
+  78          int8 ADC_GET_FLAG = 0;
+  79          
+  80          //GPIOTE事件处理函回调函数，事件回调函数里面可以获取pin编号和引脚状态变化
+  81          
+  82          void button_init(void)
+  83          {
+  84   1      
+  85   1          gpio_pull_set(key_up_pin,PULLUP);
+  86   1          gpio_pull_set(key_mode_pin,PULLUP);
+  87   1          gpio_pull_set(key_down_pin,PULLUP);
+  88   1          gpio_pull_set(key_sleep_pin,PULLUP);
+  89   1      }
+  90          
+  91          
+  92          void key_press_handler(void)
+  93          {
+  94   1          if(key_up == 0)
+  95   1          {
+  96   2      
+  97   2              up_flag = 1;
+  98   2          }
+  99   1          else
+ 100   1          {
+ 101   2              up_flag = 0;
+ 102   2          }
+ 103   1          if(key_mode == 0)
+ 104   1          {
+ 105   2      
+ 106   2              mode_flag = 1;
+ 107   2          }
+ 108   1      
+ 109   1          if(key_down == 0)
+ 110   1          {
+ 111   2      
+ 112   2              down_flag = 1;
+ 113   2          }
+ 114   1          else
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 3   
+
+ 115   1          {
+ 116   2              down_flag = 0;
+ 117   2          }
+ 118   1          if(key_sleep == 0)
+ 119   1          {
+ 120   2      
+ 121   2              sleep_flag = 1;
+ 122   2          }
+ 123   1          else
+ 124   1          {
+ 125   2              sleep_flag = 0;
+ 126   2          }
+ 127   1      
+ 128   1      }
+ 129          //10ms定时器
+ 130          
+ 131          
+ 132          void TM1_Isr() interrupt 3
+ 133          {
+ 134   1      
+ 135   1          //key_press_handler();
+ 136   1          //--------------------------------------------------------//
+ 137   1          if(mode_flag == 1)
+ 138   1          {
+ 139   2              if(key_mode == 0)//任然保持按下状态
+ 140   2              {
+ 141   3                  key_hold_ms ++;//假如一直保持按下状态
+ 142   3                  if(key_hold_ms == 100)//长按 到达1s中
+ 143   3                  {
+ 144   4                      quit_flag = 1;//确定退出，但是此刻仍然在计数
+ 145   4                      //mode_flag = 0;
+ 146   4                  }
+ 147   3              }
+ 148   2              else//只有松开按键之后，停止计数
+ 149   2              {
+ 150   3                  if((key_hold_ms <= 100 )&&(key_hold_ms >= 10))//假如判断按下时间不足1s，则为短按
+ 151   3                  {
+ 152   4                      key_hold_ms = 0;
+ 153   4                      enter_flag = 1;
+ 154   4                      mode_flag = 0;
+ 155   4                  }
+ 156   3                  else if(key_hold_ms > 100)
+ 157   3                  {
+ 158   4                      key_hold_ms = 0;
+ 159   4                      mode_flag = 0;
+ 160   4                  }
+ 161   3      
+ 162   3                  else
+ 163   3                  {
+ 164   4                      key_hold_ms = 0;
+ 165   4                  }
+ 166   3                  if((key_hold_ms <= 100 )&&(key_hold_ms >= 0)&&(enter_flag == 1))
+ 167   3                  {
+ 168   4                      BEEP_flag = 1;
+ 169   4                  }
+ 170   3      
+ 171   3              }
+ 172   2      
+ 173   2          }
+ 174   1          //--------------------------------------------------------//
+ 175   1      
+ 176   1          if(up_flag == 1)
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 4   
+
+ 177   1          {
+ 178   2              if(key_up == 0)
+ 179   2              {
+ 180   3      
+ 181   3                  if(key_hold_ms <= 100)
+ 182   3                  {
+ 183   4                      key_hold_ms ++;//假如一直保持按下状态
+ 184   4                  }
+ 185   3                  else if(key_hold_ms > 100)//长按
+ 186   3                  {
+ 187   4                      key_hold_ms = 0;
+ 188   4                      up_long_flag = 1;
+ 189   4                      up_flag = 0;
+ 190   4                  }
+ 191   3              }
+ 192   2              else
+ 193   2              {
+ 194   3                  if((key_hold_ms <= 100 ))//短按
+ 195   3                  {
+ 196   4                      key_hold_ms = 0;
+ 197   4                      up_short_flag = 1;
+ 198   4                      BEEP_flag = 1;
+ 199   4                      up_flag = 0;
+ 200   4                  }
+ 201   3      
+ 202   3              }
+ 203   2      
+ 204   2          }
+ 205   1          else//down_flag = 0
+ 206   1          {
+ 207   2              if(key_up !=0)
+ 208   2              {
+ 209   3                  up_long_flag = 0;
+ 210   3              }
+ 211   2          }
+ 212   1      
+ 213   1          //--------------------------------------------------------//
+ 214   1          if(down_flag == 1)
+ 215   1          {
+ 216   2      
+ 217   2              if(key_down == 0)
+ 218   2              {
+ 219   3      
+ 220   3                  if(key_hold_ms <= 100)
+ 221   3                  {
+ 222   4                      key_hold_ms ++;//假如一直保持按下状态
+ 223   4                  }
+ 224   3                  else if(key_hold_ms > 100)//长按
+ 225   3                  {
+ 226   4                      key_hold_ms = 0;
+ 227   4                      down_long_flag = 1;
+ 228   4                      down_flag = 0;
+ 229   4                  }
+ 230   3              }
+ 231   2              else
+ 232   2              {
+ 233   3      
+ 234   3                  if((key_hold_ms <= 100 ))//短按
+ 235   3                  {
+ 236   4                      key_hold_ms = 0;
+ 237   4                      down_short_flag = 1;
+ 238   4                      BEEP_flag = 1;
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 5   
+
+ 239   4                      down_flag = 0;
+ 240   4                  }
+ 241   3      
+ 242   3              }
+ 243   2      
+ 244   2          }
+ 245   1          else//down_flag = 0
+ 246   1          {
+ 247   2              if(key_down !=0)
+ 248   2              {
+ 249   3                  down_long_flag = 0;
+ 250   3              }
+ 251   2          }
+ 252   1          //--------------------------------------------------------//
+ 253   1          if(sleep_flag == 1)
+ 254   1          {
+ 255   2              if(SLEEP_ON_FLAG == 1)
+ 256   2              {
+ 257   3      
+ 258   3                  sleep_cont ++ ;
+ 259   3                  if(sleep_cont == 100)
+ 260   3                  {
+ 261   4                      sleep_second ++;
+ 262   4                      sleep_cont = 0;
+ 263   4                  }
+ 264   3                  if(sleep_second == SET_SLEEP_MINUTE*60 + SET_SLEEP_SECOND)
+ 265   3                  {
+ 266   4                      if((menu_flag == 0)&&(auto_power_off_flag == 0))//在主菜单并且自动关机标志位为0
+ 267   4                      {
+ 268   5                          SLEEP_INIT_FLAG = 1;
+ 269   5                          Temp_Set = IRON_TEMP_SET_SLEEP;//休眠设定温度
+ 270   5                          sleep_second = 0;
+ 271   5                          BEEP_flag = 1;
+ 272   5                          TEMP_SET_INIT_FLAG = 1;
+ 273   5                          //系统开始休眠
+ 274   5                      }
+ 275   4      
+ 276   4      
+ 277   4                  }
+ 278   3              }
+ 279   2              //下部分是自动关机的函数
+ 280   2              if(AUTO_SHUTDOWN_ON_FLAG == 1)//如果自动关机设置打开的话
+ 281   2              {
+ 282   3                shutdown_cont ++;
+ 283   3                 if(shutdown_cont == 100)//一秒钟加一秒
+ 284   3                  {
+ 285   4                      shutdown_second ++;
+ 286   4                      shutdown_cont = 0;
+ 287   4                  }
+ 288   3                  if(shutdown_second == AUTO_SHUTDOWN_MINUTE*60)//到达关机时间时
+ 289   3                  {
+ 290   4                    //系统软关机
+ 291   4                    auto_power_off_flag = 1;
+ 292   4                    shutdown_second = 0;
+ 293   4                    pwm_flag = 0;
+ 294   4                    oled_off_on_flag = 1;//开始准备熄屏计时
+ 295   4                  }
+ 296   3                  
+ 297   3              }
+ 298   2              if(oled_off_on_flag == 1)
+ 299   2              {
+ 300   3                  olde_off_cont ++;
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 6   
+
+ 301   3                 if(olde_off_cont == 100)//一秒钟
+ 302   3                  {
+ 303   4                      oled_off_second ++;
+ 304   4                      olde_off_cont = 0;
+ 305   4                  }
+ 306   3                  if(oled_off_second == 60)//达到一分钟确认熄屏
+ 307   3                  {
+ 308   4                    auto_oled_off_flag = 1;//此标志位置为1，准备熄屏
+ 309   4                    oled_handle_flag = 1;
+ 310   4                    oled_off_second = 0;
+ 311   4                  }
+ 312   3              }
+ 313   2      
+ 314   2          }
+ 315   1          else
+ 316   1          {
+ 317   2              sleep_cont = 0;
+ 318   2              sleep_second = 0;
+ 319   2              SLEEP_INIT_FLAG = 0;
+ 320   2              shutdown_cont = 0;
+ 321   2              shutdown_second = 0;
+ 322   2              auto_power_off_flag = 0;
+ 323   2              auto_oled_off_flag = 0;
+ 324   2              oled_off_on_flag = 0;
+ 325   2            if(oled_handle_flag == 1)
+ 326   2            {
+ 327   3              //加入一个标志位用于亮屏
+ 328   3              oled_light_flag = 1;
+ 329   3              //
+ 330   3              oled_handle_flag = 0;
+ 331   3            }
+ 332   2      
+ 333   2          }
+ 334   1          if(menu_flag != 0)
+ 335   1          {
+ 336   2              SLEEP_INIT_FLAG = 0;
+ 337   2              auto_power_off_flag = 0;
+ 338   2          }
+ 339   1      }
+ 340          
+ 341          void TM4_Isr() interrupt 20
+ 342          {
+ 343   1      
+ 344   1          PWM_CONT++;
+ 345   1          if(PWM_CONT == 8)//0.05s
+ 346   1          {
+ 347   2              if((error_flag == 1)&&(menu_flag == 0)&&(adc_iron_flag == 1)&&(low_battery_flag == 0)&&(auto_power
+             -_off_flag == 0))//只有烙铁插入,并且不为低电压状态，在主菜单才开启pwm
+ 348   2              {
+ 349   3                  pwm_flag = !pwm_flag;
+ 350   3      
+ 351   3              }
+ 352   2              PWM_CONT = 0;
+ 353   2          }
+ 354   1          if((PWM_CONT == 7)&&(pwm_flag == 0))
+ 355   1          {
+ 356   2              ADC_GET_FLAG = 1;
+ 357   2              //iron_ad = adc_once(ADC_IRON_TEMP, ADC_10BIT);
+ 358   2          }                               //测试端口
+ 359   1          AUXINTIF &= ~0x04;                          //清中断标志
+ 360   1      }
+ 361          void TM3_Isr() interrupt 19
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 7   
+
+ 362          {
+ 363   1          if(BEEP_flag == 1)
+ 364   1          {
+ 365   2              BEEP_CONT ++;
+ 366   2              if(BEEP_CONT == 5)
+ 367   2              {
+ 368   3                  BEEP_flag = 0;
+ 369   3                  BEEP_CONT = 0;
+ 370   3      
+ 371   3              }
+ 372   2          }                              //测试端口
+ 373   1          AUXINTIF &= ~0x02;                          //清中断标志
+ 374   1      }
+ 375          
+ 376          void adc_iron_get_handle(void)
+ 377          {
+ 378   1          if(ADC_GET_FLAG == 1)
+ 379   1          {
+ 380   2              iron_ad = adc_once(ADC_IRON_TEMP, ADC_10BIT);
+ 381   2              ADC_GET_FLAG = 0;
+ 382   2          }
+ 383   1      }
+ 384          
+ 385          void OLED_sleep_handle(void)
+ 386          {
+ 387   1          if(SLEEP_INIT_FLAG == 1)
+ 388   1          {
+ 389   2              OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+ 390   2              OLED_WR_Byte(0x00,OLED_CMD);
+ 391   2          }
+ 392   1          else
+ 393   1          {
+ 394   2              OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+ 395   2              OLED_WR_Byte(page_two_data[1][2],OLED_CMD);
+ 396   2          }
+ 397   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1151    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     37    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

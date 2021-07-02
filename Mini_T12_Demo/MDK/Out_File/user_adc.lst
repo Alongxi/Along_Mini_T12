@@ -1,0 +1,240 @@
+C51 COMPILER V9.59.0.0   USER_ADC                                                          07/02/2021 17:17:07 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_ADC
+OBJECT MODULE PLACED IN .\Out_File\user_adc.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\User\user_adc.c LARGE OPTIMIZE(9,SPEED) BROWSE INCD
+                    -IR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USER\
+                    -src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\user_adc.lst)
+                    - TABS(2) OBJECT(.\Out_File\user_adc.obj)
+
+line level    source
+
+   1          /*
+   2          ------------------------------------------------------------
+   3          官方网址：www.alongxii.xyz
+   4          软件作者：Along
+   5          QQ：1259306443
+   6          邮箱：alongxii@outlook.com/1259306443@qq.com
+   7          硬件作者：LI JIAN
+   8          QQ：1557731308
+   9          邮箱：jian19990317@qq.com
+  10          源码底层采用逐飞科技开源库，在此基础上进行二次开发，代码全部开源至Github。
+  11          商用前请联系作者Along进行相关咨询。
+  12          ------------------------------------------------------------
+  13          2021.7.2
+  14          源码最后更新至V1.3.1版本
+  15          功能包括：
+  16          1.参数整定
+  17          2.屏幕设置
+  18          3.基础设置
+  19          4.休眠时间设置
+  20          5.温度阈值设置
+  21          6.阻焊校准设置
+  22          7.电源协议管理设置
+  23          8.菜单UI设置
+  24          具体设置使用方法在www.alongxii.xyz中有详细介绍。
+  25          后续网址可能会更替为www.alongxii.com/www.alongxii.cn。
+  26          ------------------------------------------------------------
+  27          源码相关文件介绍：
+  28          *user_gpio.h:引脚映射的头文件，可根据自己电路的布局修改引脚映射，除ADC接口需采用P1口以外，
+  29          IIC、SPI接口均采用模拟接口，理论上可任意映射。
+  30          main.c:此文件中主要提供软件初始化配置，及菜单等功能程序调用。
+  31          user_menu.c:此文件用于菜单UI使用。
+  32          user_adc.c:此文件用于ADC信号采集，电压值转换、温度转换。
+  33          烙铁温度读取采用分段一次函数，依次对每个100度分段的adc值进行运算得到对应温度值。
+  34          电压采集使用电阻分压。
+  35          user_pid.c:此文件采用位置式PID进行控温，如有更先进控制方案，可在此文件中修改控制函数。
+  36          user_button.c:此文件提供相关按键中断函数与操作逻辑函数，功能调用方式。
+  37          ------------------------------------------------------------
+  38          */
+  39          #include "headfile.h"
+  40          #include "user_adc.h"
+  41          /*float temp_res[30] =//热敏电阻在0-29度时的电阻值(单位：kΩ)
+  42          {
+  43            27.65, 26.47, 25.34, 24.27, 23.25, 22.27, 21.35, 20.47, 19.63, 18.83,
+  44            18.06, 17.34, 16.64, 15,98, 15.35, 14.74, 14.17, 13.62, 13.09, 12.59,
+  45            12.11, 11.65, 11.21, 10.79, 10.39, 10.00, 9.569, 9.158, 8.768, 8.396,
+  46          };*/
+  47          uint8 error_flag = 1;
+  48          uint8 low_battery_flag = 0;
+  49          uint8 adc_iron_flag = 0;
+  50          float SHOW_IRON_TEMP;
+  51          float Iron_temp_now;
+  52          float Iron_temp_last;
+C51 COMPILER V9.59.0.0   USER_ADC                                                          07/02/2021 17:17:07 PAGE 2   
+
+  53          float iron_k[4];//近似烙铁温度变化曲线为一个一次函数：y = kx + b
+  54          float iron_b[4];
+  55          
+  56          void user_adc_init(void)
+  57          {
+  58   1          adc_init(ADC_VIN, ADC_SYSclk_DIV_8);  //初始化24V电压获取
+  59   1          adc_init(ADC_IRON_TEMP, ADC_SYSclk_DIV_8);  //初始化烙铁电压
+  60   1          adc_init(ADC_SYS_TEMP, ADC_SYSclk_DIV_8); //初始化室温检测
+  61   1      }
+  62          
+  63          float adc_vin_get()//获取系统电压
+  64          {
+  65   1          float vin_ad,temp = 0;
+  66   1          float ad_array[51];
+  67   1          int vin_data,i,j = 0;
+  68   1          vin_data = adc_once(ADC_VIN, ADC_10BIT);
+  69   1      #ifdef Demo
+                  vin_ad = ((float)vin_data/1024.0)*(32.2/2.2)*3.3;//定义一个初始电压值
+              #endif
+  72   1      #ifdef Product
+  73   1          vin_ad = ((float)vin_data/1024.0)*(28.7/4.7)*3.3;
+  74   1      #endif
+  75   1      #ifdef Product_V2
+                  vin_ad = ((float)vin_data/1024.0)*(51.7/4.7)*3.3;
+              #endif
+  78   1          for(i = 0; i<51; i++)
+  79   1          {
+  80   2              ad_array[i] = vin_ad;//将连续50次电压检测的ad值赋值到数组中
+  81   2          }
+  82   1          for (j=0; j<50; j++) //采用冒泡排序
+  83   1          {
+  84   2              for (i=0; i<50-j; i++)
+  85   2              {
+  86   3                  if ( ad_array[i]>ad_array[i+1] )
+  87   3                  {
+  88   4                      temp = ad_array[i];//将值赋予给临时变量
+  89   4                      ad_array[i] = ad_array[i+1];
+  90   4                      ad_array[i+1] = temp;
+  91   4                  }
+  92   3              }
+  93   2          }
+  94   1          return ad_array[25];
+  95   1      }
+  96          
+  97          float adc_sys_temp_get()//获取整个系统的温度
+  98          {
+  99   1          float temp,resister = 0;
+ 100   1          int temp_data_sys = adc_once(ADC_SYS_TEMP, ADC_10BIT);
+ 101   1          resister = 75.0f/((1024/(float)temp_data_sys) - 1);
+ 102   1          temp = -1.42f*resister + 39.16f;//此函数只在0-30度之间近似准确
+ 103   1          return temp;
+ 104   1      }
+ 105          #define FILTER_A
+ 106          #define FILTER_N 12
+ 107          uint16 filter_buf[FILTER_N + 1];
+ 108          
+ 109          //新建一个滤波算法
+ 110          uint16 adc_get_filter(uint16 get_init_data)
+ 111          {
+ 112   1      //递推平均滤波法
+ 113   1      #ifdef FILTER_A
+ 114   1          //uint8 filter_i = 0;
+C51 COMPILER V9.59.0.0   USER_ADC                                                          07/02/2021 17:17:07 PAGE 3   
+
+ 115   1          uint8 filter_count = 0;
+ 116   1          int filter_sum = 0;
+ 117   1          filter_buf[FILTER_N] = get_init_data;
+ 118   1          for(filter_count = 0; filter_count < FILTER_N; filter_count++)
+ 119   1          {
+ 120   2             // filter_sum += filter_buf[filter_count];
+ 121   2                filter_buf[filter_count] = filter_buf[filter_count + 1]; // 所有数据左移，低位仍掉
+ 122   2                filter_sum += filter_buf[filter_count];
+ 123   2          }
+ 124   1          return (uint16)(filter_sum / FILTER_N);
+ 125   1      
+ 126   1      #endif
+ 127   1      //
+ 128   1      #ifdef FILTER_B
+                  
+              #endif
+ 131   1      
+ 132   1      }
+ 133          
+ 134          
+ 135          
+ 136          
+ 137          
+ 138          
+ 139          
+ 140          
+ 141          
+ 142          
+ 143          
+ 144          
+ 145          
+ 146          
+ 147          
+ 148          
+ 149          
+ 150          //读取烙铁的AD值，将其转化为温度
+ 151          void adc_iron_temp(uint16 temp_data)
+ 152          {
+ 153   1          float temp = 0;
+ 154   1      
+ 155   1          if(temp_data < IRON_PARM_600)
+ 156   1          {
+ 157   2              adc_iron_flag = 1;
+ 158   2              if(temp_data <= IRON_PARM_0)//在0-200度时
+ 159   2              {
+ 160   3      
+ 161   3                  temp = 0;
+ 162   3              }
+ 163   2              else if((IRON_PARM_0 <= temp_data)&&(temp_data <= IRON_PARM_200))//在0-200度时
+ 164   2              {
+ 165   3                  iron_k[0] = (200 - 0)/(IRON_PARM_200 - IRON_PARM_0);
+ 166   3                  iron_b[0] = 200 - iron_k[0]*IRON_PARM_200;
+ 167   3                  temp = iron_k[0]*(float)temp_data +  iron_b[0];
+ 168   3              }
+ 169   2              else if((IRON_PARM_200 < temp_data)&&(temp_data <= IRON_PARM_400))//在200-400度时
+ 170   2              {
+ 171   3                  iron_k[1] = (400 - 200)/(IRON_PARM_400 - IRON_PARM_200);
+ 172   3                  iron_b[1] = 400 - iron_k[1]*IRON_PARM_400;
+ 173   3                  temp = iron_k[1]*(float)temp_data +  iron_b[1];
+ 174   3              }
+ 175   2              else if((IRON_PARM_400 < temp_data)&&(temp_data <= IRON_PARM_500))//在400-500度时
+ 176   2              {
+C51 COMPILER V9.59.0.0   USER_ADC                                                          07/02/2021 17:17:07 PAGE 4   
+
+ 177   3                  iron_k[2] = (500 - 400)/(IRON_PARM_500 - IRON_PARM_400);
+ 178   3                  iron_b[2] = 500 - iron_k[2]*IRON_PARM_500;
+ 179   3                  temp = iron_k[2]*(float)temp_data +  iron_b[2];
+ 180   3              }
+ 181   2              else if((IRON_PARM_500 < temp_data)&&(temp_data <= IRON_PARM_600))//在500-600度时
+ 182   2              {
+ 183   3                  iron_k[3] = (600 - 500)/(IRON_PARM_600 - IRON_PARM_500);
+ 184   3                  iron_b[3] = 600 - iron_k[3]*IRON_PARM_600;
+ 185   3                  temp = iron_k[3]*(float)temp_data +  iron_b[3];
+ 186   3              }
+ 187   2              Iron_temp_now  = temp + adc_sys_temp_get();//获取当前烙铁温度
+ 188   2              //if((Iron_temp_last - Iron_temp_now> 150)||((Iron_temp_last - Iron_temp_now < -150)))//
+ 189   2              //{
+ 190   2              //Iron_temp_now = Iron_temp_last;
+ 191   2              //}
+ 192   2      
+ 193   2              if((SHOW_IRON_TEMP > Temp_Set - 10)&&(SHOW_IRON_TEMP < Temp_Set + 10))
+ 194   2              {
+ 195   3                  SHOW_IRON_TEMP = Temp_Set;
+ 196   3              }
+ 197   2              else
+ 198   2              {
+ 199   3                  SHOW_IRON_TEMP = Iron_temp_now;
+ 200   3              }
+ 201   2              Iron_temp_last = Iron_temp_now;
+ 202   2          }
+ 203   1          else
+ 204   1          {
+ 205   2            adc_iron_flag = 0;
+ 206   2                  pwm_flag = 0;//在这里面
+ 207   2          }
+ 208   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1540    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     73     226
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

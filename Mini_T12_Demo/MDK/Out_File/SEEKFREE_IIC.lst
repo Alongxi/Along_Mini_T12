@@ -1,0 +1,312 @@
+C51 COMPILER V9.59.0.0   SEEKFREE_IIC                                                      07/02/2021 17:17:06 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE SEEKFREE_IIC
+OBJECT MODULE PLACED IN .\Out_File\SEEKFREE_IIC.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\seekfree_peripheral\SEEKFREE_IIC.c LARGE OPTIMIZE(9
+                    -,SPEED) BROWSE INCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;.
+                    -.\USER\inc;..\USER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out
+                    -_File\SEEKFREE_IIC.lst) TABS(2) OBJECT(.\Out_File\SEEKFREE_IIC.obj)
+
+line level    source
+
+   1          /*********************************************************************************************************
+             -************
+   2           * COPYRIGHT NOTICE
+   3           * Copyright (c) 2018,逐飞科技
+   4           * All rights reserved.
+   5           * 技术讨论QQ群：179029047
+   6           *
+   7           * 以下所有内容版权均属逐飞科技所有，未经允许不得用于商业用途，
+   8           * 欢迎各位使用并传播本程序，修改内容时必须保留逐飞科技的版权声明。
+   9           *
+  10           * @file          模拟IIC
+  11           * @company       成都逐飞科技有限公司
+  12           * @author        逐飞科技(QQ3184284598)
+  13           * @version       查看common.h内VERSION宏定义
+  14           * @Software    IAR 7.8 or MDK 5.24a
+  15           * @Target core   LPC54606J512BD100
+  16           * @Taobao      https://seekfree.taobao.com/
+  17           * @date          2018-05-24
+  18           * @note
+  19                    接线定义：
+  20                    ------------------------------------
+  21                      SCL                 查看SEEKFREE_IIC文件内的SEEKFREE_SCL宏定义
+  22                      SDA                 查看SEEKFREE_IIC文件内的SEEKFREE_SDA宏定义
+  23                    ------------------------------------
+  24           *********************************************************************************************************
+             -***********/
+  25          
+  26          
+  27          #include "SEEKFREE_IIC.h"
+  28          
+  29          
+  30          
+  31          
+  32          
+  33          #define SDA             SIMIIC_SDA_PIN
+  34          #define SDA0()          SIMIIC_SDA_PIN = 0    //IO口输出低电平
+  35          #define SDA1()          SIMIIC_SDA_PIN = 1    //IO口输出高电平  
+  36          #define SCL0()          SIMIIC_SCL_PIN = 0    //IO口输出低电平
+  37          #define SCL1()          SIMIIC_SCL_PIN = 1    //IO口输出高电平
+  38          
+  39          
+  40          //内部数据定义
+  41          uint8 IIC_ad_main; //器件从地址
+  42          uint8 IIC_ad_sub;  //器件子地址
+  43          uint8 *IIC_buf;    //发送|接收数据缓冲区
+  44          uint8 IIC_num;     //发送|接收数据个数
+  45          
+  46          #define ack 1      //主应答
+  47          #define no_ack 0   //从应答   
+  48          
+  49          //--------------------------------------------------------------------------------------------------------
+             ------------
+C51 COMPILER V9.59.0.0   SEEKFREE_IIC                                                      07/02/2021 17:17:06 PAGE 2   
+
+  50          //  @brief      模拟IIC初始化
+  51          //  @return     void
+  52          //  @since      v1.0
+  53          //  Sample usage:
+  54          //--------------------------------------------------------------------------------------------------------
+             ------------
+  55          void  simiic_init(void)
+  56          {
+  57   1          //GPIO已在board_init()中初始化。
+  58   1      }
+  59          
+  60          //--------------------------------------------------------------------------------------------------------
+             ------------
+  61          //  @brief      模拟IIC延时
+  62          //  @return     void
+  63          //  @since      v1.0
+  64          //  Sample usage:       如果IIC通讯失败可以尝试增加j的值
+  65          //--------------------------------------------------------------------------------------------------------
+             ------------
+  66          void simiic_delay(void)
+  67          {
+  68   1      
+  69   1          uint16 j=2;
+  70   1          while(j--);
+  71   1      
+  72   1      }
+  73          
+  74          
+  75          //内部使用，用户无需调用
+  76          void simiic_start(void)
+  77          {
+  78   1      
+  79   1          SDA1();
+  80   1          SCL1();
+  81   1          simiic_delay();
+  82   1          SDA0();
+  83   1          simiic_delay();
+  84   1          SCL0();
+  85   1      
+  86   1      }
+  87          
+  88          //内部使用，用户无需调用
+  89          void simiic_stop(void)
+  90          {
+  91   1      
+  92   1          SDA0();
+  93   1          SCL0();
+  94   1          simiic_delay();
+  95   1          SCL1();
+  96   1          simiic_delay();
+  97   1          SDA1();
+  98   1          simiic_delay();
+  99   1      
+ 100   1      }
+ 101          
+ 102          //主应答(包含ack:SDA=0和no_ack:SDA=0)
+ 103          //内部使用，用户无需调用
+ 104          void simiic_sendack(unsigned char ack_dat)
+ 105          {
+ 106   1          SCL0();
+ 107   1          simiic_delay();
+ 108   1          if(ack_dat) SDA0();
+C51 COMPILER V9.59.0.0   SEEKFREE_IIC                                                      07/02/2021 17:17:06 PAGE 3   
+
+ 109   1          else      SDA1();
+ 110   1      
+ 111   1          SCL1();
+ 112   1          simiic_delay();
+ 113   1          SCL0();
+ 114   1          simiic_delay();
+ 115   1      }
+ 116          
+ 117          
+ 118          static int sccb_waitack(void)
+ 119          {
+ 120   1          SCL0();
+ 121   1      
+ 122   1          simiic_delay();
+ 123   1      
+ 124   1          SCL1();
+ 125   1          simiic_delay();
+ 126   1      
+ 127   1          if(SDA)           //应答为高电平，异常，通信失败
+ 128   1          {
+ 129   2      
+ 130   2              SCL0();
+ 131   2              return 0;
+ 132   2          }
+ 133   1      
+ 134   1          SCL0();
+ 135   1          simiic_delay();
+ 136   1          return 1;
+ 137   1      }
+ 138          
+ 139          //字节发送程序
+ 140          //发送c(可以是数据也可是地址)，送完后接收从应答
+ 141          //不考虑从应答位
+ 142          //内部使用，用户无需调用
+ 143          void send_ch(uint8 c)
+ 144          {
+ 145   1          uint8 i = 8;
+ 146   1          while(i--)
+ 147   1          {
+ 148   2              if(c & 0x80)  SDA1();//SDA 输出数据
+ 149   2              else      SDA0();
+ 150   2              c <<= 1;
+ 151   2              simiic_delay();
+ 152   2              SCL1();                //SCL 拉高，采集信号
+ 153   2              simiic_delay();
+ 154   2              SCL0();                //SCL 时钟线拉低
+ 155   2          }
+ 156   1          sccb_waitack();
+ 157   1      }
+ 158          
+ 159          //字节接收程序
+ 160          //接收器件传来的数据，此程序应配合|主应答函数|使用
+ 161          //内部使用，用户无需调用
+ 162          uint8 read_ch(uint8 ack_x)
+ 163          {
+ 164   1          uint8 i;
+ 165   1          uint8 c;
+ 166   1          c=0;
+ 167   1          SCL0();
+ 168   1          simiic_delay();
+ 169   1          SDA1();
+ 170   1      
+C51 COMPILER V9.59.0.0   SEEKFREE_IIC                                                      07/02/2021 17:17:06 PAGE 4   
+
+ 171   1          for(i=0; i<8; i++)
+ 172   1          {
+ 173   2              simiic_delay();
+ 174   2              SCL0();         //置时钟线为低，准备接收数据位
+ 175   2              simiic_delay();
+ 176   2              SCL1();         //置时钟线为高，使数据线上数据有效
+ 177   2              simiic_delay();
+ 178   2              c<<=1;
+ 179   2              if(SDA)
+ 180   2              {
+ 181   3                  c+=1;   //读数据位，将接收的数据存c
+ 182   3              }
+ 183   2          }
+ 184   1      
+ 185   1          SCL0();
+ 186   1          simiic_delay();
+ 187   1          simiic_sendack(ack_x);
+ 188   1      
+ 189   1          return c;
+ 190   1      }
+ 191          
+ 192          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 193          //  @brief      模拟IIC写数据到设备寄存器函数
+ 194          //  @param      dev_add     设备地址(低七位地址)
+ 195          //  @param      reg       寄存器地址
+ 196          //  @param      dat       写入的数据
+ 197          //  @return     void
+ 198          //  @since      v1.0
+ 199          //  Sample usage:
+ 200          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 201          void simiic_write_reg(uint8 dev_add, uint8 reg, uint8 dat)
+ 202          {
+ 203   1          simiic_start();
+ 204   1          send_ch( (dev_add<<1) | 0x00);   //发送器件地址加写位    (dev_add<<1) | 0x00
+ 205   1          send_ch( reg );            //发送从机寄存器地址
+ 206   1          send_ch( dat );            //发送需要写入的数据
+ 207   1          simiic_stop();
+ 208   1      }
+ 209          
+ 210          
+ 211          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 212          //  @brief      模拟IIC从设备寄存器读取数据
+ 213          //  @param      dev_add     设备地址(低七位地址)
+ 214          //  @param      reg       寄存器地址
+ 215          //  @param      type      选择通信方式是IIC  还是 SCCB
+ 216          //  @return     uint8     返回寄存器的数据
+ 217          //  @since      v1.0
+ 218          //  Sample usage:
+ 219          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 220          uint8 simiic_read_reg(uint8 dev_add, uint8 reg, IIC_type type)
+ 221          {
+ 222   1          uint8 dat;
+ 223   1          simiic_start();
+ 224   1          send_ch( (dev_add<<1) | 0x00);  //发送器件地址加写位
+ 225   1          send_ch( reg );           //发送从机寄存器地址
+ 226   1          if(type == SCCB)simiic_stop();
+ 227   1      
+ 228   1          simiic_start();
+C51 COMPILER V9.59.0.0   SEEKFREE_IIC                                                      07/02/2021 17:17:06 PAGE 5   
+
+ 229   1          send_ch( (dev_add<<1) | 0x01);  //发送器件地址加读位
+ 230   1          dat = read_ch(no_ack);          //读取数据
+ 231   1          simiic_stop();
+ 232   1      
+ 233   1          return dat;
+ 234   1      }
+ 235          
+ 236          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 237          //  @brief      模拟IIC读取多字节数据
+ 238          //  @param      dev_add     设备地址(低七位地址)
+ 239          //  @param      reg       寄存器地址
+ 240          //  @param      dat_add     数据保存的地址指针
+ 241          //  @param      num       读取字节数量
+ 242          //  @param      type      选择通信方式是IIC  还是 SCCB
+ 243          //  @return     uint8     返回寄存器的数据
+ 244          //  @since      v1.0
+ 245          //  Sample usage:
+ 246          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 247          void simiic_read_regs(uint8 dev_add, uint8 reg, uint8 *dat_add, uint8 num, IIC_type type)
+ 248          {
+ 249   1          simiic_start();
+ 250   1          send_ch( (dev_add<<1) | 0x00);  //发送器件地址加写位
+ 251   1          send_ch( reg );           //发送从机寄存器地址
+ 252   1          if(type == SCCB)simiic_stop();
+ 253   1      
+ 254   1          simiic_start();
+ 255   1          send_ch( (dev_add<<1) | 0x01);  //发送器件地址加读位
+ 256   1          while(--num)
+ 257   1          {
+ 258   2              *dat_add = read_ch(ack); //读取数据
+ 259   2              dat_add++;
+ 260   2          }
+ 261   1          *dat_add = read_ch(no_ack); //读取数据
+ 262   1          simiic_stop();
+ 263   1      }
+ 264          
+ 265          
+ 266          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    383    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      6       9
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

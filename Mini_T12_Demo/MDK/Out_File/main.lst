@@ -1,0 +1,127 @@
+C51 COMPILER V9.59.0.0   MAIN                                                              07/02/2021 17:17:07 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Out_File\main.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\USER\src\main.c LARGE OPTIMIZE(9,SPEED) BROWSE INCDIR(..\..\Libr
+                    -aries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USER\src;..\..\Lib
+                    -raries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\main.lst) TABS(2) OBJECT(.
+                    -\Out_File\main.obj)
+
+line level    source
+
+   1          /*
+   2          ------------------------------------------------------------
+   3          官方网址：www.alongxii.xyz
+   4          软件作者：Along
+   5          QQ：1259306443
+   6          邮箱：alongxii@outlook.com/1259306443@qq.com
+   7          硬件作者：LI JIAN
+   8          QQ：1557731308
+   9          邮箱：jian19990317@qq.com
+  10          源码底层采用逐飞科技开源库，在此基础上进行二次开发，代码全部开源至Github。
+  11          商用前请联系作者Along进行相关咨询。
+  12          ------------------------------------------------------------
+  13          2021.7.2
+  14          源码最后更新至V1.3.1版本
+  15          功能包括：
+  16          1.参数整定
+  17          2.屏幕设置
+  18          3.基础设置
+  19          4.休眠时间设置
+  20          5.温度阈值设置
+  21          6.阻焊校准设置
+  22          7.电源协议管理设置
+  23          8.菜单UI设置
+  24          具体设置使用方法在www.alongxii.xyz中有详细介绍。
+  25          后续网址可能会更替为www.alongxii.com/www.alongxii.cn。
+  26          ------------------------------------------------------------
+  27          源码相关文件介绍：
+  28          *user_gpio.h:引脚映射的头文件，可根据自己电路的布局修改引脚映射，除ADC接口需采用P1口以外，
+  29          IIC、SPI接口均采用模拟接口，理论上可任意映射。
+  30          main.c:此文件中主要提供软件初始化配置，及菜单等功能程序调用。
+  31          user_menu.c:此文件用于菜单UI使用。
+  32          user_adc.c:此文件用于ADC信号采集，电压值转换、温度转换。
+  33          烙铁温度读取采用分段一次函数，依次对每个100度分段的adc值进行运算得到对应温度值。
+  34          电压采集使用电阻分压。
+  35          user_pid.c:此文件采用位置式PID进行控温，如有更先进控制方案，可在此文件中修改控制函数。
+  36          user_button.c:此文件提供相关按键中断函数与操作逻辑函数，功能调用方式。
+  37          ------------------------------------------------------------
+  38          */
+  39          #include "headfile.h"
+  40          #include "user_gpio.h"
+  41          
+  42          void main()
+  43          {
+  44   1          DisableGlobalIRQ(); //关闭总中断
+  45   1          board_init();
+  46   1          user_adc_init();//ADC初始化
+  47   1          button_init();//按键初始化
+  48   1          ALL_PWM_init();//PWM初始化
+  49   1          #ifdef HARDWARE_IIC
+                  //iic_change_pin(IIC_1,IIC1_SCL_P15,IIC1_SDA_P14);
+                  //iic_init(IIC_1,IIC1_SCL_P15,IIC1_SDA_P14,0);
+                  user_iic_init();
+C51 COMPILER V9.59.0.0   MAIN                                                              07/02/2021 17:17:07 PAGE 2   
+
+                  #endif
+  54   1          OLED_Init();//OLED初始化
+  55   1          pit_timer_ms(TIM_1, 10);//10ms中断
+  56   1          pit_timer_ms(TIM_4, 10);//10ms中断
+  57   1          pit_timer_ms(TIM_3, 10);//10ms中断
+  58   1      
+  59   1          CFG1 = 1;
+  60   1          CFG2 = 0;
+  61   1          CFG3 = 0;
+  62   1          EnableGlobalIRQ();  //开启总中断
+  63   1          eeprom_read(0x00,save_data_A,32);
+  64   1          eeprom_read(0x20,save_data_B,32);
+  65   1          data_restore();
+  66   1          //data_init();
+  67   1          Function_init();
+  68   1      
+  69   1          while(1)
+  70   1          {
+  71   2              top_menu(Temp_Set,SHOW_IRON_TEMP, (uint8)adc_sys_temp_get(), (uint8)adc_vin_get(), (int)((pwm_duty
+             -_out)*100/PWM_DUTY_MAX));
+  72   2              show_menu();
+  73   2              key_press();
+  74   2              key_press_handler();
+  75   2              OLED_sleep_handle();
+  76   2              adc_iron_get_handle();
+  77   2              adc_iron_temp(adc_get_filter(iron_ad));//获取AD值
+  78   2      
+  79   2      //        printf("sleep_cont:%d\r\n",sleep_cont);
+  80   2      //        printf("sleep_second:%d\r\n",sleep_second);
+  81   2      //        printf("Temp_init_flag:%bd\r\n",TEMP_SET_INIT_FLAG);
+  82   2              printf("%d,%d\n",adc_get_filter(iron_ad),(uint16)Iron_temp_now);
+  83   2      //        printf("Vin:%f v\r\n",adc_vin_get());
+  84   2      //        printf("Res_temp:%f oC\r\n",adc_sys_temp_get());
+  85   2      
+  86   2          }
+  87   1      }
+  88          
+  89          
+  90          
+  91          
+  92          
+  93          
+  94          
+  95          
+  96          
+  97          
+  98          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    281    ----
+   CONSTANT SIZE    =      7    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

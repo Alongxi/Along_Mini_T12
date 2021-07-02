@@ -1,0 +1,26 @@
+".\Out_File\common.obj",
+".\Out_File\board.obj",
+".\Out_File\zf_iic.obj",
+".\Out_File\zf_uart.obj",
+".\Out_File\zf_adc.obj",
+".\Out_File\zf_tim.obj",
+".\Out_File\zf_pwm.obj",
+".\Out_File\zf_pca_pit.obj",
+".\Out_File\zf_exti.obj",
+".\Out_File\zf_pca_delay.obj",
+".\Out_File\zf_gpio.obj",
+".\Out_File\zf_eeprom.obj",
+".\Out_File\SEEKFREE_FONT.obj",
+".\Out_File\SEEKFREE_IIC.obj",
+".\Out_File\SEEKFREE_MPU6050.obj",
+".\Out_File\isr.obj",
+".\Out_File\main.obj",
+".\Out_File\user_menu.obj",
+".\Out_File\user_adc.obj",
+".\Out_File\user_pid.obj",
+".\Out_File\user_button.obj",
+".\Out_File\user_eeprom.obj",
+".\Out_File\user_lib_iic.obj" 
+TO ".\Out_File\Mini_T12_Demo" 
+PRINT(".\Out_File\Mini_T12_Demo.m51") RAMSIZE(256) 
+DISABLEWARNING (16) 

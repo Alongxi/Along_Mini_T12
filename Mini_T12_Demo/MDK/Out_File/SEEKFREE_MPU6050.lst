@@ -1,0 +1,1232 @@
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE SEEKFREE_MPU6050
+OBJECT MODULE PLACED IN .\Out_File\SEEKFREE_MPU6050.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\seekfree_peripheral\SEEKFREE_MPU6050.c LARGE OPTIMI
+                    -ZE(9,SPEED) BROWSE INCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripher
+                    -al;..\USER\inc;..\USER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.
+                    -\Out_File\SEEKFREE_MPU6050.lst) TABS(2) OBJECT(.\Out_File\SEEKFREE_MPU6050.obj)
+
+line level    source
+
+   1          /*********************************************************************************************************
+             -************
+   2           * COPYRIGHT NOTICE
+   3           * Copyright (c) 2018,逐飞科技
+   4           * All rights reserved.
+   5           * 技术讨论QQ群：一群：179029047(已满)  二群：244861897
+   6           *
+   7           * 以下所有内容版权均属逐飞科技所有，未经允许不得用于商业用途，
+   8           * 欢迎各位使用并传播本程序，修改内容时必须保留逐飞科技的版权声明。
+   9           *
+  10           * @file          MPU6050
+  11           * @company       成都逐飞科技有限公司
+  12           * @author        逐飞科技(QQ3184284598)
+  13           * @version       查看doc内version文件 版本说明
+  14           * @Software    IAR 8.3 or MDK 5.28
+  15           * @Taobao      https://seekfree.taobao.com/
+  16           * @date          2019-04-30
+  17           * @note
+  18                    接线定义：
+  19                    ------------------------------------
+  20                      软件IIC
+  21                                  SCL                 查看SEEKFREE_IIC文件内的SEEKFREE_SCL宏定义
+  22                      SDA                 查看SEEKFREE_IIC文件内的SEEKFREE_SDA宏定义
+  23                    ------------------------------------
+  24           *********************************************************************************************************
+             -***********/
+  25          #include "headfile.h"
+  26          
+  27          #include "SEEKFREE_IIC.h"
+  28          #include "SEEKFREE_MPU6050.h"
+  29          #include "zf_pca_delay.h"
+  30          #include "SEEKFREE_FONT.h"
+  31          #include "user_menu.h"
+  32          
+  33          
+  34          #define SOFTWARE_IIC
+  35          /*********************************************
+  36          // IIC Write Command
+  37          **********************************************/
+  38          void Write_IIC_Command(unsigned char IIC_Command)
+  39          {
+  40   1        #ifdef SOFTWARE_IIC
+  41   1          simiic_write_reg(OLED_ADDRESS,0x00, IIC_Command);
+  42   1        #endif
+  43   1        
+  44   1        #ifdef HARDWARE_IIC
+                user_iic_write_reg(OLED_ADDRESS_HARDWARE, 0x00,IIC_Command);
+                #endif
+  47   1      }
+  48          /**********************************************
+  49          // IIC Write Data
+  50          **********************************************/
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 2   
+
+  51          void Write_IIC_Data(unsigned char IIC_Data)
+  52          {
+  53   1        #ifdef SOFTWARE_IIC
+  54   1          simiic_write_reg(OLED_ADDRESS,0x40, IIC_Data);
+  55   1        #endif
+  56   1        
+  57   1        #ifdef HARDWARE_IIC
+                user_iic_write_reg(OLED_ADDRESS_HARDWARE,0x40,IIC_Data);
+                #endif
+  60   1      }
+  61          void OLED_WR_Byte(unsigned dat,unsigned cmd)
+  62          {
+  63   1          if(cmd)
+  64   1          {
+  65   2              Write_IIC_Data(dat);
+  66   2          }
+  67   1          else
+  68   1          {
+  69   2              Write_IIC_Command(dat);
+  70   2          }
+  71   1      }
+  72          /********************************************
+  73          // fill_Picture
+  74          ********************************************/
+  75          void fill_picture(unsigned char fill_Data)
+  76          {
+  77   1          unsigned char m,n;
+  78   1          for(m=0; m<8; m++)
+  79   1          {
+  80   2              OLED_WR_Byte(0xb0+m,0);   //page0-page1
+  81   2              OLED_WR_Byte(0x00,0);   //low column start address
+  82   2              OLED_WR_Byte(0x10,0);   //high column start address
+  83   2              for(n=0; n<128; n++)
+  84   2              {
+  85   3                  OLED_WR_Byte(fill_Data,1);
+  86   3              }
+  87   2          }
+  88   1      }
+  89          //坐标设置
+  90          
+  91          void OLED_Set_Pos(unsigned char x, unsigned char y)
+  92          {
+  93   1          OLED_WR_Byte(0xb0+y,OLED_CMD);
+  94   1          OLED_WR_Byte(((x&0xf0)>>4)|0x10,OLED_CMD);
+  95   1          OLED_WR_Byte((x&0x0f),OLED_CMD);
+  96   1      }
+  97          //清屏函数,清完屏,整个屏幕是黑色的!和没点亮一样!!!
+  98          void OLED_Clear(void)
+  99          {
+ 100   1          uint8 i,n;
+ 101   1          for(i=0; i<8; i++)
+ 102   1          {
+ 103   2              OLED_WR_Byte (0xb0+i,OLED_CMD);    //设置页地址（0~7）
+ 104   2              OLED_WR_Byte (0x00,OLED_CMD);      //设置显示位置—列低地址
+ 105   2              OLED_WR_Byte (0x10,OLED_CMD);      //设置显示位置—列高地址
+ 106   2              for(n=0; n<128; n++)OLED_WR_Byte(0,OLED_DATA);
+ 107   2          } //更新显示
+ 108   1      }
+ 109          void OLED_On(void)
+ 110          {
+ 111   1          uint8 i,n;
+ 112   1          for(i=0; i<8; i++)
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 3   
+
+ 113   1          {
+ 114   2              OLED_WR_Byte (0xb0+i,OLED_CMD);    //设置页地址（0~7）
+ 115   2              OLED_WR_Byte (0x00,OLED_CMD);      //设置显示位置—列低地址
+ 116   2              OLED_WR_Byte (0x10,OLED_CMD);      //设置显示位置—列高地址
+ 117   2              for(n=0; n<128; n++)OLED_WR_Byte(1,OLED_DATA);
+ 118   2          } //更新显示
+ 119   1      }
+ 120          
+ 121          void OLED_ShowChar(uint8 x,uint8 y,uint8 chr,uint8 Char_Size)
+ 122          {
+ 123   1          unsigned char c=0,i=0;
+ 124   1          c=chr-' ';//得到偏移后的值
+ 125   1          if(x>Max_Column-1) {
+ 126   2              x=0;
+ 127   2              y=y+2;
+ 128   2          }
+ 129   1      
+ 130   1          if(select_flag == 0)
+ 131   1          {
+ 132   2              if(Char_Size ==16)
+ 133   2              {
+ 134   3                  OLED_Set_Pos(x,y);
+ 135   3                  for(i=0; i<8; i++)
+ 136   3                      OLED_WR_Byte(F8X16[c*16+i],OLED_DATA);
+ 137   3                  OLED_Set_Pos(x,y+1);
+ 138   3                  for(i=0; i<8; i++)
+ 139   3                      OLED_WR_Byte(F8X16[c*16+i+8],OLED_DATA);
+ 140   3              }
+ 141   2              else {
+ 142   3                  OLED_Set_Pos(x,y);
+ 143   3                  for(i=0; i<6; i++)
+ 144   3                      OLED_WR_Byte(F6x8[c][i],OLED_DATA);
+ 145   3      
+ 146   3              }
+ 147   2          }
+ 148   1          else
+ 149   1          {
+ 150   2              if(Char_Size ==16)
+ 151   2              {
+ 152   3                  OLED_Set_Pos(x,y);
+ 153   3                  for(i=0; i<8; i++)
+ 154   3                      OLED_WR_Byte(~F8X16[c*16+i],OLED_DATA);
+ 155   3                  OLED_Set_Pos(x,y+1);
+ 156   3                  for(i=0; i<8; i++)
+ 157   3                      OLED_WR_Byte(~F8X16[c*16+i+8],OLED_DATA);
+ 158   3              }
+ 159   2              else {
+ 160   3                  OLED_Set_Pos(x,y);
+ 161   3                  for(i=0; i<6; i++)
+ 162   3                      OLED_WR_Byte(~F6x8[c][i],OLED_DATA);
+ 163   3      
+ 164   3              }
+ 165   2          }
+ 166   1      }
+ 167          void OLED_P8x16Str(uint8 x,uint8 y,uint8 ch[])
+ 168          {
+ 169   1          uint8 c=0,i=0,j=0;
+ 170   1      
+ 171   1          while (ch[j]!='\0')
+ 172   1          {
+ 173   2              c =ch[j]-32;
+ 174   2              if(x > 122) {
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 4   
+
+ 175   3                  x=0;
+ 176   3                  y++;
+ 177   3              }
+ 178   2              OLED_Set_Pos(x,y);
+ 179   2              for(i=0; i<8; i++)
+ 180   2                  OLED_WR_Byte(F8X16[c*16+i],OLED_DATA);
+ 181   2              OLED_Set_Pos(x,y+1);
+ 182   2              for(i=0; i<8; i++)
+ 183   2                  OLED_WR_Byte(F8X16[c*16+i+8],OLED_DATA);
+ 184   2              x+=8;
+ 185   2              j++;
+ 186   2          }
+ 187   1      }
+ 188          //m^n函数
+ 189          uint32 oled_pow(uint8 m,uint8 n)
+ 190          {
+ 191   1          uint32 result=1;
+ 192   1          while(n--)result*=m;
+ 193   1          return result;
+ 194   1      }
+ 195          //显示2个数字
+ 196          //x,y :起点坐标
+ 197          //len :数字的位数
+ 198          //size:字体大小
+ 199          //mode:模式 0,填充模式;1,叠加模式
+ 200          //num:数值(0~4294967295);
+ 201          void OLED_ShowNum(uint8 x,uint8 y,uint32 num,uint8 len,uint8 size2)
+ 202          {
+ 203   1          uint8 t,temp;
+ 204   1          uint8 enshow=0;
+ 205   1          for(t=0; t<len; t++)
+ 206   1          {
+ 207   2              temp=(num/oled_pow(10,len-t-1))%10;
+ 208   2              if(enshow==0&&t<(len-1))
+ 209   2              {
+ 210   3                  if(temp==0)
+ 211   3                  {
+ 212   4                      OLED_ShowChar(x+(size2/2)*t,y,' ',size2);
+ 213   4                      continue;
+ 214   4                  } else enshow=1;
+ 215   3      
+ 216   3              }
+ 217   2              OLED_ShowChar(x+(size2/2)*t,y,temp+'0',size2);
+ 218   2          }
+ 219   1      }
+ 220          //显示一个字符号串
+ 221          void OLED_ShowString(uint8 x,uint8 y,uint8 *chr,uint8 Char_Size)
+ 222          {
+ 223   1          unsigned char j=0;
+ 224   1          while (chr[j]!='\0')
+ 225   1          {   OLED_ShowChar(x,y,chr[j],Char_Size);
+ 226   2              if(Char_Size == 16)
+ 227   2              {
+ 228   3                  x+=8;
+ 229   3              }
+ 230   2              else
+ 231   2              {
+ 232   3                  x+=6;
+ 233   3              }
+ 234   2              if(x>120) {
+ 235   3                  x=0;
+ 236   3                  y+=2;
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 5   
+
+ 237   3              }
+ 238   2              j++;
+ 239   2          }
+ 240   1      }
+ 241          
+ 242          /***********功能描述：显示显示BMP图片128×64起始点坐标(x,y),x的范围0～127，y为页的范围0～7****************
+             -*/
+ 243          void OLED_DrawBMP(unsigned char x0, unsigned char y0,unsigned char x1, unsigned char y1,unsigned char BMP[
+             -])
+ 244          {
+ 245   1          unsigned int j=0;
+ 246   1          unsigned char x,y;
+ 247   1      
+ 248   1          if(y1%8==0) y=y1/8;
+ 249   1          else y=y1/8+1;
+ 250   1          for(y=y0; y<y1; y++)
+ 251   1          {
+ 252   2              OLED_Set_Pos(x0,y);
+ 253   2              for(x=x0; x<x1; x++)
+ 254   2              {
+ 255   3                  OLED_WR_Byte(BMP[j++],OLED_DATA);
+ 256   3              }
+ 257   2          }
+ 258   1      }
+ 259          
+ 260          //初始化SSD1306
+ 261          void OLED_Init(void)
+ 262          {
+ 263   1          //pca_delay_ms(100);
+ 264   1          OLED_WR_Byte(0xAE,OLED_CMD);//关闭显示
+ 265   1      
+ 266   1          OLED_WR_Byte(0x40,OLED_CMD);//---set low column address
+ 267   1          OLED_WR_Byte(0xB0,OLED_CMD);//---set high column address
+ 268   1      
+ 269   1          OLED_WR_Byte(0xC0,OLED_CMD);//-not offset
+ 270   1      
+ 271   1          OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+ 272   1          OLED_WR_Byte(0xff,OLED_CMD);//亮度调满
+ 273   1      
+ 274   1          OLED_WR_Byte(0xa0,OLED_CMD);//段重定向设置  a1    a0
+ 275   1          OLED_WR_Byte(0xC0,OLED_CMD);//-not offset   c8    c0
+ 276   1      
+ 277   1          OLED_WR_Byte(0xa6,OLED_CMD);//
+ 278   1      
+ 279   1          OLED_WR_Byte(0xa8,OLED_CMD);//设置驱动路数
+ 280   1          OLED_WR_Byte(0x1f,OLED_CMD);//驱动32线
+ 281   1      
+ 282   1          OLED_WR_Byte(0xd3,OLED_CMD);
+ 283   1          OLED_WR_Byte(0x00,OLED_CMD);
+ 284   1      
+ 285   1          OLED_WR_Byte(0xd5,OLED_CMD);
+ 286   1          OLED_WR_Byte(0xf0,OLED_CMD);
+ 287   1      
+ 288   1          OLED_WR_Byte(0xd9,OLED_CMD);
+ 289   1          OLED_WR_Byte(0x22,OLED_CMD);
+ 290   1      
+ 291   1          OLED_WR_Byte(0xda,OLED_CMD);
+ 292   1          OLED_WR_Byte(0x02,OLED_CMD);
+ 293   1      
+ 294   1          OLED_WR_Byte(0xdb,OLED_CMD);
+ 295   1          OLED_WR_Byte(0x49,OLED_CMD);
+ 296   1      
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 6   
+
+ 297   1          OLED_WR_Byte(0x8d,OLED_CMD);
+ 298   1          OLED_WR_Byte(0x14,OLED_CMD);
+ 299   1      
+ 300   1          OLED_WR_Byte(0xaf,OLED_CMD);
+ 301   1          OLED_Clear();
+ 302   1      }
+ 303          /******************************************************************************
+ 304          * 描  述 : 显示20*40一组标准ASCII字符串
+ 305          * 入  参 : x:列0~127；y:页地址0~7；
+ 306          * 返回值 : 无
+ 307          ******************************************************************************/
+ 308          void OLED_P16x32Str(uint8 x, uint8 y, uint8 N)
+ 309          {
+ 310   1          uint8 i=0;
+ 311   1          unsigned int adder=64*N;
+ 312   1          int yCount;
+ 313   1          OLED_Set_Pos(x, y);
+ 314   1          for (yCount = 0; yCount < 4; yCount++ )
+ 315   1          {
+ 316   2              OLED_Set_Pos(x, y);
+ 317   2              for ( i = 0; i < 16; i++ )
+ 318   2              {
+ 319   3                  OLED_WR_Byte(F16x32[adder],OLED_DATA);
+ 320   3                  adder += 1;
+ 321   3              }
+ 322   2              y++;
+ 323   2          }
+ 324   1      
+ 325   1      }
+ 326          
+ 327          
+ 328          void Draw_IMG24x24(uint8 x, uint8 y, uint8 N)
+ 329          {
+ 330   1          uint8 i=0;
+ 331   1          unsigned int adder=72*N;
+ 332   1          int yCount;
+ 333   1          OLED_Set_Pos(x, y);
+ 334   1          for (yCount = 0; yCount < 3; yCount++ )
+ 335   1          {
+ 336   2              OLED_Set_Pos(x, y);
+ 337   2              for ( i = 0; i < 24; i++ )
+ 338   2              {
+ 339   3                  OLED_WR_Byte(IMG24X24[adder],OLED_DATA);
+ 340   3                  adder += 1;
+ 341   3              }
+ 342   2              y++;
+ 343   2          }
+ 344   1      
+ 345   1      }
+ 346          void Draw_IMG48x32(uint8 x, uint8 y, uint8 N)
+ 347          {
+ 348   1          uint8 i=0;
+ 349   1          unsigned int adder=192*N;
+ 350   1          int yCount;
+ 351   1          OLED_Set_Pos(x, y);
+ 352   1          for (yCount = 0; yCount < 4; yCount++ )
+ 353   1          {
+ 354   2              OLED_Set_Pos(x, y);
+ 355   2              for ( i = 0; i < 48; i++ )
+ 356   2              {
+ 357   3                  OLED_WR_Byte(IMG48X32[adder],OLED_DATA);
+ 358   3                  adder += 1;
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 7   
+
+ 359   3              }
+ 360   2              y++;
+ 361   2          }
+ 362   1      
+ 363   1      }
+ 364          void fill_24x1(uint8 x, uint8 y)//清除24x1列
+ 365          {
+ 366   1          int yCount;
+ 367   1          for (yCount = 0; yCount < 3; yCount++ )
+ 368   1          {
+ 369   2              OLED_Set_Pos(x, y);
+ 370   2              OLED_WR_Byte(0x00,OLED_DATA);
+ 371   2      
+ 372   2              y++;
+ 373   2          }
+ 374   1      }
+ 375          
+ 376          void fill_24x10(int8 x, int8 y)//清除24x10列
+ 377          {
+ 378   1          uint8 i=0;
+ 379   1          unsigned int adder=0;
+ 380   1          int yCount;
+ 381   1          if(x < 0)
+ 382   1          {
+ 383   2      
+ 384   2          }
+ 385   1          else if((x>0)&&(x<54))
+ 386   1          {
+ 387   2              OLED_Set_Pos(x, y);
+ 388   2              for (yCount = 0; yCount < 3; yCount++ )
+ 389   2              {
+ 390   3                  OLED_Set_Pos(y, y);
+ 391   3                  for ( i = 0; i < 10; i++ )
+ 392   3                  {
+ 393   4                      OLED_WR_Byte(0x00,OLED_DATA);
+ 394   4                      adder += 1;
+ 395   4                  }
+ 396   3                  y++;
+ 397   3              }
+ 398   2          }
+ 399   1          else if(x > 54)
+ 400   1          {
+ 401   2      
+ 402   2          }
+ 403   1      }
+ 404          /*
+ 405          void Draw_IMG24x24(int8 x, int8 y, uint8 N)
+ 406          {
+ 407              uint8 i=0;
+ 408              unsigned int adder;
+ 409              int yCount;
+ 410              if((x >= 0)&&(x < 40))
+ 411              {
+ 412                  adder=72*N;
+ 413                  OLED_Set_Pos(x, y);
+ 414                  for (yCount = 0; yCount < 3; yCount++ )
+ 415                  {
+ 416                      OLED_Set_Pos(x, y);
+ 417                      for ( i = 0; i < 24; i++ )
+ 418                      {
+ 419                          OLED_WR_Byte(IMG24X24[adder],OLED_DATA);
+ 420                          adder += 1;
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 8   
+
+ 421                      }
+ 422                      y++;
+ 423                  }
+ 424              }
+ 425              else if(x < 0)
+ 426              {
+ 427                  adder=72*N -x;
+ 428                  OLED_Set_Pos(0, y);
+ 429                  for (yCount = 0; yCount < 3; yCount++ )
+ 430                  {
+ 431                      OLED_Set_Pos(0, y);
+ 432          
+ 433                      for ( i = 0; i < 24+x; i++ )
+ 434                      {
+ 435                          OLED_WR_Byte(IMG24X24[adder],OLED_DATA);
+ 436                          adder += 1;
+ 437                      }
+ 438                      adder += -x;
+ 439                      y++;
+ 440                  }
+ 441              }
+ 442              else if(x >=40)
+ 443              {
+ 444                  adder=72*N;
+ 445                  OLED_Set_Pos(x, y);
+ 446                  for (yCount = 0; yCount < 3; yCount++ )
+ 447                  {
+ 448                      OLED_Set_Pos(x, y);
+ 449                      for ( i = 0; i < 64-x; i++ )
+ 450                      {
+ 451                          OLED_WR_Byte(IMG24X24[adder],OLED_DATA);
+ 452                          adder += 1;
+ 453                      }
+ 454                      adder += x-40;
+ 455                      y++;
+ 456                  }
+ 457              }
+ 458          
+ 459          
+ 460          }
+ 461          */
+ 462          
+ 463          void Draw_IMG34x24(int8 x, int8 y, uint8 N)
+ 464          {
+ 465   1          uint8 i=0;
+ 466   1          unsigned int adder;
+ 467   1          int yCount;
+ 468   1          if((x >= 0)&&(x < 30))
+ 469   1          {
+ 470   2              adder=102*N;
+ 471   2              OLED_Set_Pos(x, y);
+ 472   2              for (yCount = 0; yCount < 3; yCount++ )
+ 473   2              {
+ 474   3                  OLED_Set_Pos(x, y);
+ 475   3                  for ( i = 0; i < 34; i++ )
+ 476   3                  {
+ 477   4                      OLED_WR_Byte(IMG34X24[adder],OLED_DATA);
+ 478   4                      adder += 1;
+ 479   4                  }
+ 480   3                  y++;
+ 481   3              }
+ 482   2          }
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 9   
+
+ 483   1          else if(x < 0)
+ 484   1          {
+ 485   2              adder=102*N -x;
+ 486   2              OLED_Set_Pos(0, y);
+ 487   2              for (yCount = 0; yCount < 3; yCount++ )
+ 488   2              {
+ 489   3                  OLED_Set_Pos(0, y);
+ 490   3      
+ 491   3                  for ( i = 0; i < 34+x; i++ )
+ 492   3                  {
+ 493   4                      OLED_WR_Byte(IMG34X24[adder],OLED_DATA);
+ 494   4                      adder += 1;
+ 495   4                  }
+ 496   3                  adder += -x;
+ 497   3                  y++;
+ 498   3              }
+ 499   2          }
+ 500   1          else if(x >=30)
+ 501   1          {
+ 502   2              adder=102*N;
+ 503   2              OLED_Set_Pos(x, y);
+ 504   2              for (yCount = 0; yCount < 3; yCount++ )
+ 505   2              {
+ 506   3                  OLED_Set_Pos(x, y);
+ 507   3                  for ( i = 0; i < 64-x; i++ )
+ 508   3                  {
+ 509   4                      OLED_WR_Byte(IMG34X24[adder],OLED_DATA);
+ 510   4                      adder += 1;
+ 511   4                  }
+ 512   3                  adder += x-30;
+ 513   3                  y++;
+ 514   3              }
+ 515   2          }
+ 516   1      
+ 517   1      
+ 518   1      }
+ 519          void Draw_IMG42X32(int8 x, int8 y, uint8 N)//将活动范围定死在x=0-64
+ 520          {
+ 521   1          uint8 i=0;
+ 522   1          unsigned int adder;
+ 523   1          int yCount;
+ 524   1          if((x >= 0)&&(x < 22))
+ 525   1          {
+ 526   2              adder=168*N;
+ 527   2              OLED_Set_Pos(x, y);
+ 528   2              for (yCount = 0; yCount < 4; yCount++ )
+ 529   2              {
+ 530   3                  OLED_Set_Pos(x, y);
+ 531   3                  for ( i = 0; i < 42; i++ )
+ 532   3                  {
+ 533   4                      OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 534   4                      adder += 1;
+ 535   4                  }
+ 536   3                  y++;
+ 537   3              }
+ 538   2          }
+ 539   1          else if(x < 0)
+ 540   1          {
+ 541   2              adder=168*N -x;
+ 542   2              OLED_Set_Pos(0, y);
+ 543   2              for (yCount = 0; yCount < 4; yCount++ )
+ 544   2              {
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 10  
+
+ 545   3                  OLED_Set_Pos(0, y);
+ 546   3      
+ 547   3                  for ( i = 0; i < 42+x; i++ )
+ 548   3                  {
+ 549   4                      OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 550   4                      adder += 1;
+ 551   4                  }
+ 552   3                  adder += -x;
+ 553   3                  y++;
+ 554   3              }
+ 555   2          }
+ 556   1          else if(x >=22)
+ 557   1          {
+ 558   2              adder=168*N;
+ 559   2              OLED_Set_Pos(x, y);
+ 560   2              for (yCount = 0; yCount < 4; yCount++ )
+ 561   2              {
+ 562   3                  OLED_Set_Pos(x, y);
+ 563   3                  for ( i = 0; i < 64-x; i++ )
+ 564   3                  {
+ 565   4                      OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 566   4                      adder += 1;
+ 567   4                  }
+ 568   3                  adder += x-22;
+ 569   3                  y++;
+ 570   3              }
+ 571   2          }
+ 572   1      
+ 573   1      
+ 574   1      }
+ 575          void show_IMG16x16(uint8 x, uint8 y, uint8 N)
+ 576          {
+ 577   1          uint8 i=0;
+ 578   1          int yCount;
+ 579   1          uint8 adder=0;
+ 580   1          OLED_Set_Pos(x, y);
+ 581   1          for (yCount = 0; yCount < 2; yCount++ )
+ 582   1          {
+ 583   2              OLED_Set_Pos(x, y);
+ 584   2              for ( i = 0; i < 16; i++ )
+ 585   2              {
+ 586   3                  OLED_WR_Byte(IMG16X16[N][adder],OLED_DATA);
+ 587   3                  adder += 1;
+ 588   3              }
+ 589   2              y++;
+ 590   2          }
+ 591   1      
+ 592   1      }
+ 593          void show_temp(uint8 x,uint16 temp)
+ 594          {
+ 595   1          uint8 temp_data[3];
+ 596   1          temp_data[0] = temp/100%10;
+ 597   1          temp_data[1] = temp/10%10;
+ 598   1          temp_data[2] = temp%10;
+ 599   1      
+ 600   1      if(auto_power_off_flag == 0)//如果系统没有软关机
+ 601   1      {
+ 602   2          if(iron_ad < IRON_PARM_600)
+ 603   2          {
+ 604   3      
+ 605   3              //show_IMG16x16(x+48,0,4);//℃
+ 606   3              if(((uint8)adc_vin_get() < LOW_BATTERY_VOLTAGE)&&(LOW_BATTERY_ON_FLAG == 1))
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 11  
+
+ 607   3              {
+ 608   4                  Draw_IMG48x32(x,0,1);//
+ 609   4                  Draw_IMG24x24(x+48,0,1);//空
+ 610   4              }
+ 611   3              else
+ 612   3              {
+ 613   4                  OLED_P16x32Str(x,0,temp_data[0]);//显示百位
+ 614   4                  OLED_P16x32Str(x+16,0,temp_data[1]);//十位
+ 615   4                  OLED_P16x32Str(x+32,0,temp_data[2]);//个位
+ 616   4                  Draw_IMG24x24(x+48,0,0);
+ 617   4              }
+ 618   3      
+ 619   3          }
+ 620   2          else
+ 621   2          {
+ 622   3              Draw_IMG48x32(x,0,0);//
+ 623   3              if(((uint8)adc_vin_get() < LOW_BATTERY_VOLTAGE)&&(LOW_BATTERY_ON_FLAG == 1))
+ 624   3              {
+ 625   4      
+ 626   4                  Draw_IMG24x24(x+48,0,2);//低电压
+ 627   4              }
+ 628   3              else
+ 629   3              {
+ 630   4                  
+ 631   4                  Draw_IMG24x24(x+48,0,1);
+ 632   4              }
+ 633   3      
+ 634   3          }
+ 635   2        }
+ 636   1      else//如果系统进入软关机
+ 637   1      {
+ 638   2        Draw_IMG24x24(x+48,0,3);//软关机
+ 639   2        Draw_IMG48x32(x,0,2);//软关机符号
+ 640   2      }
+ 641   1        
+ 642   1      
+ 643   1      }
+ 644          
+ 645          void show_set_temp(uint8 x,uint8 y,uint16 temp)
+ 646          {
+ 647   1          OLED_ShowNum(x,y,temp,3,16);//显示3位数字 16
+ 648   1      }
+ 649          /******************************************************************************
+ 650          * 描  述 : 显示104*8电量条
+ 651          * 入  参 : x:列0~127；y:页地址0~7；
+ 652          * 返回值 : 无
+ 653          ******************************************************************************/
+ 654          void show_IMG56x8(uint8 x, uint8 y,uint8 percent)
+ 655          {
+ 656   1          uint8 j;
+ 657   1          uint8 nember_data[3];
+ 658   1          nember_data[0] = percent/100%10;
+ 659   1          nember_data[1] = percent/10%10;
+ 660   1          nember_data[2] = percent%10;
+ 661   1          OLED_Set_Pos(x, y);
+ 662   1          for(j = 0; j < 56; j++)
+ 663   1          {
+ 664   2              if((j>=3)&&(j<=53))
+ 665   2              {
+ 666   3                  if(percent/2 >j-3)
+ 667   3                  {
+ 668   4                      OLED_WR_Byte(0xBD,OLED_DATA);
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 12  
+
+ 669   4                  }
+ 670   3                  else
+ 671   3                  {
+ 672   4                      OLED_WR_Byte(0x81,OLED_DATA);
+ 673   4                  }
+ 674   3              }
+ 675   2              else
+ 676   2              {
+ 677   3                  OLED_WR_Byte(IMG_56x8[j],OLED_DATA);
+ 678   3              }
+ 679   2          }
+ 680   1          OLED_ShowNum(x+32,y-1,nember_data[0],1,12);
+ 681   1          OLED_ShowNum(x+38,y-1,nember_data[1],1,12);
+ 682   1          OLED_ShowNum(x+44,y-1,nember_data[2],1,12);
+ 683   1          OLED_ShowString(x+50,y-1,"%",8);
+ 684   1      
+ 685   1      }
+ 686          
+ 687          /*
+ 688          * 汉字16X16字
+ 689          */
+ 690          void OLED_CH16Str(uint8 x,uint8 y,uint8 ch[])
+ 691          {
+ 692   1          uint8 str_offset = 0,ii = 0;//
+ 693   1          uint32 adder = 1; //汉字码对应数组号
+ 694   1      
+ 695   1          while(ch[ii] != '\0')//索引字符串检查是否结尾
+ 696   1          {
+ 697   2              str_offset = 0; //汉字字符偏移量
+ 698   2              adder = 1;    //初始码
+ 699   2              /*
+ 700   2              *   计算汉字索引查表
+ 701   2              */
+ 702   2              while(CHINESE_Idx[str_offset] > 127)//判断是否为汉字的ASCII码值
+ 703   2              {
+ 704   3                  if(CHINESE_Idx[str_offset] == ch[ii])
+ 705   3                  {
+ 706   4                      if(CHINESE_Idx[str_offset + 1] == ch[ii + 1])
+ 707   4                      {
+ 708   5                          adder = str_offset * 16;//adder 获取
+ 709   5                          break;//
+ 710   5                      }
+ 711   4                  }
+ 712   3                  str_offset += 2;//  偏移增加
+ 713   3              }
+ 714   2              if(x>122) {
+ 715   3                  x=0;
+ 716   3                  y+=2;
+ 717   3              }
+ 718   2              OLED_Set_Pos(x, y);
+ 719   2              if(adder != 1)// 显示汉字
+ 720   2              {
+ 721   3                  OLED_Set_Pos(x, y); //当前行显示
+ 722   3                  for(str_offset = 0; str_offset < 16; str_offset++)
+ 723   3                  {
+ 724   4                      OLED_WR_Byte(CH_16[adder],OLED_DATA);//
+ 725   4                      adder += 1;
+ 726   4                  }
+ 727   3                  OLED_Set_Pos(x,y + 1); //换行显示
+ 728   3                  for(str_offset = 0; str_offset < 16; str_offset++)
+ 729   3                  {
+ 730   4                      OLED_WR_Byte(CH_16[adder],OLED_DATA);
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 13  
+
+ 731   4                      adder += 1;
+ 732   4                  }
+ 733   3              }
+ 734   2              else        //显示空白字符
+ 735   2              {
+ 736   3                  ii += 1;
+ 737   3                  OLED_Set_Pos(x,y);
+ 738   3                  for(str_offset = 0; str_offset < 16; str_offset++)
+ 739   3                  {
+ 740   4                      OLED_WR_Byte(0,OLED_DATA);
+ 741   4                  }
+ 742   3                  OLED_Set_Pos(x,y + 1);
+ 743   3                  for(str_offset = 0; str_offset < 16; str_offset++)
+ 744   3                  {
+ 745   4                      OLED_WR_Byte(0,OLED_DATA);
+ 746   4                  }
+ 747   3              }
+ 748   2              x += 16;//显示X坐标偏移
+ 749   2              ii += 2;//汉字占2个字节
+ 750   2          }
+ 751   1      }
+ 752          //输出汉字字符串
+ 753          void OLED_Print(uint8 x, uint8 y, uint8 ch[])
+ 754          {
+ 755   1          uint8 buff[3];
+ 756   1          uint32 ii=0;
+ 757   1      
+ 758   1          while(ch[ii] != '\0')//判断显示字符是否结尾
+ 759   1          {
+ 760   2              if(ch[ii] > 127)//判断->汉字ASCII字码
+ 761   2              {
+ 762   3                  buff[0] = ch[ii];
+ 763   3                  buff[1] = ch[ii + 1];
+ 764   3                  buff[2] = '\0';     //汉字为两个字节
+ 765   3                  OLED_CH16Str(x, y, buff); //显示汉字
+ 766   3                  x += 16;//显示偏移坐标
+ 767   3                  ii += 2;//字码偏移
+ 768   3              }
+ 769   2              else//判断->字母ASCII
+ 770   2              {
+ 771   3                  buff[0] = ch[ii];
+ 772   3                  buff[1] = '\0';     //字母占一个字节
+ 773   3                  OLED_P8x16Str(x, y, buff);  //显示字母
+ 774   3                  x += 8;//显示偏移坐标
+ 775   3                  ii+= 1;//字码偏移
+ 776   3              }
+ 777   2          }
+ 778   1      }
+ 779          void Draw_IMG42X32_limit(int8 x, int8 y, uint8 N,uint8 mode)//将活动范围定死在x=0-64   y限制在0-3
+ 780          {
+ 781   1          uint8 i=0;
+ 782   1          unsigned int adder;
+ 783   1          uint8 y_now = 0;
+ 784   1          int yCount;
+ 785   1          if(mode == 0)
+ 786   1          {
+ 787   2              if((x >= 0)&&(x < 22))
+ 788   2              {
+ 789   3                  adder=168*N;
+ 790   3                  OLED_Set_Pos(x, y);
+ 791   3                  for (yCount = 0; yCount < 4; yCount++ )
+ 792   3                  {
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 14  
+
+ 793   4                      OLED_Set_Pos(x, y);
+ 794   4                      for ( i = 0; i < 42; i++ )
+ 795   4                      {
+ 796   5                          OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 797   5                          adder += 1;
+ 798   5                      }
+ 799   4                      y++;
+ 800   4                  }
+ 801   3              }
+ 802   2              else if(x < 0)
+ 803   2              {
+ 804   3                  adder=168*N -x;
+ 805   3                  OLED_Set_Pos(0, y);
+ 806   3                  for (yCount = 0; yCount < 4; yCount++ )
+ 807   3                  {
+ 808   4                      OLED_Set_Pos(0, y);
+ 809   4      
+ 810   4                      for ( i = 0; i < 42+x; i++ )
+ 811   4                      {
+ 812   5                          OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 813   5                          adder += 1;
+ 814   5                      }
+ 815   4                      adder += -x;
+ 816   4                      y++;
+ 817   4                  }
+ 818   3              }
+ 819   2              else if(x >=22)
+ 820   2              {
+ 821   3                  adder=168*N;
+ 822   3                  OLED_Set_Pos(x, y);
+ 823   3                  for (yCount = 0; yCount < 4; yCount++ )
+ 824   3                  {
+ 825   4                      OLED_Set_Pos(x, y);
+ 826   4                      for ( i = 0; i < 64-x; i++ )
+ 827   4                      {
+ 828   5                          OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 829   5                          adder += 1;
+ 830   5                      }
+ 831   4                      adder += x-22;
+ 832   4                      y++;
+ 833   4                  }
+ 834   3              }
+ 835   2          }
+ 836   1          else if(mode == 1)
+ 837   1          {
+ 838   2              adder=168*N;
+ 839   2              if(y < 0)
+ 840   2              {
+ 841   3                  OLED_Set_Pos(x, 0);
+ 842   3                  adder = adder +42*(-y);
+ 843   3                  for (yCount = 0; yCount < 4+y; yCount++ )
+ 844   3                  {
+ 845   4                      OLED_Set_Pos(x, y_now);
+ 846   4      
+ 847   4                      for ( i = 0; i < 42; i++ )
+ 848   4                      {
+ 849   5                          OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 850   5                          adder += 1;
+ 851   5                      }
+ 852   4                      y_now++;
+ 853   4                  }
+ 854   3              }
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 15  
+
+ 855   2              else if(y == 0)
+ 856   2              {
+ 857   3                  OLED_Set_Pos(x, y);
+ 858   3                  for (yCount = 0; yCount < 4; yCount++ )
+ 859   3                  {
+ 860   4                      OLED_Set_Pos(x, y);
+ 861   4                      for ( i = 0; i < 42; i++ )
+ 862   4                      {
+ 863   5                          OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 864   5                          adder += 1;
+ 865   5                      }
+ 866   4                      y++;
+ 867   4                  }
+ 868   3              }
+ 869   2              else if(y > 0)
+ 870   2              {
+ 871   3                  OLED_Set_Pos(x, y);
+ 872   3                  y_now = y;
+ 873   3                  for (yCount = 0; yCount < 4-y; yCount++ )
+ 874   3                  {
+ 875   4                      OLED_Set_Pos(x, y_now);
+ 876   4                      for ( i = 0; i < 42; i++ )
+ 877   4                      {
+ 878   5                          OLED_WR_Byte(IMG42X32[adder],OLED_DATA);
+ 879   5                          adder += 1;
+ 880   5                      }
+ 881   4                      y_now++;
+ 882   4                  }
+ 883   3              }
+ 884   2          }
+ 885   1      
+ 886   1      }
+ 887          /*
+ 888          * 汉字16X16字
+ 889          */
+ 890          void ROW_OLED_CH16Str(int8 x,int8 y,uint8 ch[])//汉字滚动
+ 891          {
+ 892   1          int yCount;
+ 893   1          uint8 str_offset = 0,ii = 0;//
+ 894   1          uint32 adder = 1; //汉字码对应数组号
+ 895   1          //uint8 y_now = 0;
+ 896   1          uint8 i = 0;
+ 897   1          while(ch[ii] != '\0')//索引字符串检查是否结尾
+ 898   1          {
+ 899   2              str_offset = 0; //汉字字符偏移量
+ 900   2              adder = 1;    //初始码
+ 901   2              /*
+ 902   2              *   计算汉字索引查表
+ 903   2              */
+ 904   2              while(CHINESE_Idx[str_offset] > 127)//判断是否为汉字的ASCII码值
+ 905   2              {
+ 906   3                  if(CHINESE_Idx[str_offset] == ch[ii])
+ 907   3                  {
+ 908   4                      if(CHINESE_Idx[str_offset + 1] == ch[ii + 1])
+ 909   4                      {
+ 910   5                          adder = str_offset * 16;//adder 获取
+ 911   5                          break;//
+ 912   5                      }
+ 913   4                  }
+ 914   3                  str_offset += 2;//  偏移增加
+ 915   3              }
+ 916   2              if(x>122) {
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 16  
+
+ 917   3                  x=0;
+ 918   3                  y++;
+ 919   3              }
+ 920   2      
+ 921   2      
+ 922   2              if(y == -1)
+ 923   2              {
+ 924   3                  OLED_Set_Pos(x, 0);
+ 925   3      
+ 926   3                  if(adder != 1)
+ 927   3                  {
+ 928   4                      adder = adder +16;
+ 929   4      
+ 930   4                      OLED_Set_Pos(x, 0);
+ 931   4                      for ( i = 0; i < 16; i++ )
+ 932   4                      {
+ 933   5                          OLED_WR_Byte(CH_16[adder],OLED_DATA);
+ 934   5                          adder += 1;
+ 935   5                      }
+ 936   4      
+ 937   4                  }
+ 938   3                  else        //显示空白字符
+ 939   3                  {
+ 940   4                      ii += 1;
+ 941   4      
+ 942   4                      OLED_Set_Pos(x, 0);
+ 943   4                      for ( i = 0; i < 16; i++ )
+ 944   4                      {
+ 945   5                          OLED_WR_Byte(0,OLED_DATA);
+ 946   5                          adder += 1;
+ 947   5                      }
+ 948   4      
+ 949   4                  }
+ 950   3              }
+ 951   2              else if(y == -2)
+ 952   2              {
+ 953   3      
+ 954   3              }
+ 955   2              else if(y == 0)
+ 956   2              {
+ 957   3                  OLED_Set_Pos(x, y);
+ 958   3                  if(adder != 1)// 显示汉字
+ 959   3                  {
+ 960   4                      OLED_Set_Pos(x, y); //当前行显示
+ 961   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+ 962   4                      {
+ 963   5                          OLED_WR_Byte(CH_16[adder],OLED_DATA);//
+ 964   5                          adder += 1;
+ 965   5                      }
+ 966   4                      OLED_Set_Pos(x,y + 1); //换行显示
+ 967   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+ 968   4                      {
+ 969   5                          OLED_WR_Byte(~CH_16[adder],OLED_DATA);
+ 970   5                          adder += 1;
+ 971   5                      }
+ 972   4                  }
+ 973   3                  else        //显示空白字符
+ 974   3                  {
+ 975   4                      ii += 1;
+ 976   4                      OLED_Set_Pos(x,y);
+ 977   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+ 978   4                      {
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 17  
+
+ 979   5                          OLED_WR_Byte(0,OLED_DATA);
+ 980   5                      }
+ 981   4                      OLED_Set_Pos(x,y + 1);
+ 982   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+ 983   4                      {
+ 984   5                          OLED_WR_Byte(0xff,OLED_DATA);
+ 985   5                      }
+ 986   4                  }
+ 987   3              }
+ 988   2              else if(y == 1)
+ 989   2              {
+ 990   3                  OLED_Set_Pos(x, y);
+ 991   3                  if(adder != 1)// 显示汉字
+ 992   3                  {
+ 993   4                      for (yCount = 0; yCount < 2; yCount++ )
+ 994   4                      {
+ 995   5                          OLED_Set_Pos(x, y);
+ 996   5                          for ( i = 0; i < 16; i++ )
+ 997   5                          {
+ 998   6                              OLED_WR_Byte(~CH_16[adder],OLED_DATA);
+ 999   6                              adder += 1;
+1000   6                          }
+1001   5                          y++;
+1002   5                      }
+1003   4      
+1004   4                  }
+1005   3                  else        //显示空白字符
+1006   3                  {
+1007   4                      ii += 1;
+1008   4                      for (yCount = 0; yCount < 2; yCount++ )
+1009   4                      {
+1010   5                          OLED_Set_Pos(x, y);
+1011   5                          for ( i = 0; i < 16; i++ )
+1012   5                          {
+1013   6                              OLED_WR_Byte(0xff,OLED_DATA);
+1014   6                              adder += 1;
+1015   6                          }
+1016   5                          y++;
+1017   5                      }
+1018   4                  }
+1019   3              }
+1020   2              else if(y == 2)
+1021   2              {
+1022   3                  OLED_Set_Pos(x, y);
+1023   3                  if(adder != 1)// 显示汉字
+1024   3                  {
+1025   4                      OLED_Set_Pos(x, y); //当前行显示
+1026   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+1027   4                      {
+1028   5                          OLED_WR_Byte(~CH_16[adder],OLED_DATA);//
+1029   5                          adder += 1;
+1030   5                      }
+1031   4                      OLED_Set_Pos(x,y + 1); //换行显示
+1032   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+1033   4                      {
+1034   5                          OLED_WR_Byte(CH_16[adder],OLED_DATA);
+1035   5                          adder += 1;
+1036   5                      }
+1037   4                  }
+1038   3                  else        //显示空白字符
+1039   3                  {
+1040   4                      ii += 1;
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 18  
+
+1041   4                      OLED_Set_Pos(x,y);
+1042   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+1043   4                      {
+1044   5                          OLED_WR_Byte(0xff,OLED_DATA);
+1045   5                      }
+1046   4                      OLED_Set_Pos(x,y + 1);
+1047   4                      for(str_offset = 0; str_offset < 16; str_offset++)
+1048   4                      {
+1049   5                          OLED_WR_Byte(0,OLED_DATA);
+1050   5                      }
+1051   4                  }
+1052   3              }
+1053   2              else
+1054   2              {
+1055   3                  OLED_Set_Pos(x, y);
+1056   3                  if(adder != 1)// 显示汉字
+1057   3                  {
+1058   4                      for (yCount = 0; yCount < 2; yCount++ )
+1059   4                      {
+1060   5                          OLED_Set_Pos(x, y);
+1061   5                          for ( i = 0; i < 16; i++ )
+1062   5                          {
+1063   6                              OLED_WR_Byte(CH_16[adder],OLED_DATA);
+1064   6                              adder += 1;
+1065   6                          }
+1066   5                          y++;
+1067   5                      }
+1068   4      
+1069   4                  }
+1070   3                  else        //显示空白字符
+1071   3                  {
+1072   4                      ii += 1;
+1073   4                      for (yCount = 0; yCount < 2; yCount++ )
+1074   4                      {
+1075   5                          OLED_Set_Pos(x, y);
+1076   5                          for ( i = 0; i < 16; i++ )
+1077   5                          {
+1078   6                              OLED_WR_Byte(0,OLED_DATA);
+1079   6                              adder += 1;
+1080   6                          }
+1081   5                          y++;
+1082   5                      }
+1083   4                  }
+1084   3      
+1085   3              }
+1086   2              x += 16;//显示X坐标偏移
+1087   2              ii += 2;//汉字占2个字节
+1088   2          }
+1089   1      }
+1090          
+1091          //可滚动的汉字字符串
+1092          void ROW_OLED_Print(int8 x, int8 y, uint8 ch[])
+1093          {
+1094   1          uint8 buff[3];
+1095   1          uint32 ii=0;
+1096   1      
+1097   1          while(ch[ii] != '\0')//判断显示字符是否结尾
+1098   1          {
+1099   2              if(ch[ii] > 127)//判断->汉字ASCII字码
+1100   2              {
+1101   3                  buff[0] = ch[ii];
+1102   3                  buff[1] = ch[ii + 1];
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 19  
+
+1103   3                  buff[2] = '\0';     //汉字为两个字节
+1104   3                  ROW_OLED_CH16Str(x, y, buff); //显示汉字
+1105   3                  x += 16;//显示偏移坐标
+1106   3                  ii += 2;//字码偏移
+1107   3              }
+1108   2              else//判断->字母ASCII
+1109   2              {
+1110   3                  buff[0] = ch[ii];
+1111   3                  buff[1] = '\0';     //字母占一个字节
+1112   3                  ROW_OLED_CH16Str(x, y, buff); //显示字母
+1113   3                  x += 8;//显示偏移坐标
+1114   3                  ii+= 1;//字码偏移
+1115   3              }
+1116   2          }
+1117   1      
+1118   1      }
+1119          void OLED_CH16_Str(uint8 x, uint8 y, uint8 N)
+1120          {
+1121   1          uint8 i=0;
+1122   1          unsigned int adder=32*N;
+1123   1          int yCount;
+1124   1          OLED_Set_Pos(x, y);
+1125   1          for (yCount = 0; yCount < 2; yCount++ )
+1126   1          {
+1127   2              OLED_Set_Pos(x, y);
+1128   2              for ( i = 0; i < 16; i++ )
+1129   2              {
+1130   3                  OLED_WR_Byte(CH_16[adder],OLED_DATA);
+1131   3                  adder += 1;
+1132   3              }
+1133   2              y++;
+1134   2          }
+1135   1      
+1136   1      }
+1137          //
+1138          //功能：显示汉字字符chuan
+1139          //定义：page_floor：第多少级菜单  page_num：第几个菜单
+1140          //
+1141          void OLED_CH16_Char(uint8 x, uint8 y,uint8 page_floor,uint8 page_one_numb,uint8 page_two_numb)//显示字符串
+1142          {
+1143   1          uint8 page_center_data[4] = {0};
+1144   1          int i = 0;
+1145   1          for(i = 0; i < 4; i++)
+1146   1          {
+1147   2              if(page_floor == 1)
+1148   2              {
+1149   3                  page_center_data[i] = page_one_num[page_one_numb][i];
+1150   3                  OLED_CH16_Str(x,y,page_center_data[i]);
+1151   3                  x += 16;
+1152   3              }
+1153   2              else if(page_floor == 2)
+1154   2              {
+1155   3                  page_center_data[i] = page_two_num[page_one_numb][page_two_numb][i];
+1156   3                  OLED_CH16_Str(x,y,page_center_data[i]);
+1157   3                  x += 16;
+1158   3              }
+1159   2          }
+1160   1      
+1161   1      }
+1162          
+1163          
+1164          
+C51 COMPILER V9.59.0.0   SEEKFREE_MPU6050                                                  07/02/2021 17:17:06 PAGE 20  
+
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   6929    ----
+   CONSTANT SIZE    =      6    ----
+   XDATA SIZE       =   ----     201
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

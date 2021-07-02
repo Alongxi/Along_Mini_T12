@@ -1,0 +1,296 @@
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ZF_UART
+OBJECT MODULE PLACED IN .\Out_File\zf_uart.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\seekfree_libraries\zf_uart.c LARGE OPTIMIZE(9,SPEED
+                    -) BROWSE INCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER
+                    -\inc;..\USER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\
+                    -zf_uart.lst) TABS(2) OBJECT(.\Out_File\zf_uart.obj)
+
+line level    source
+
+   1          /*********************************************************************************************************
+             -************
+   2           * COPYRIGHT NOTICE
+   3           * Copyright (c) 2020,逐飞科技
+   4           * All rights reserved.
+   5           * 技术讨论QQ群：一群：179029047(已满)  二群：244861897(已满)  三群：824575535
+   6           *
+   7           * 以下所有内容版权均属逐飞科技所有，未经允许不得用于商业用途，
+   8           * 欢迎各位使用并传播本程序，修改内容时必须保留逐飞科技的版权声明。
+   9           *
+  10           * @file          uart
+  11           * @company       成都逐飞科技有限公司
+  12           * @author        逐飞科技(QQ790875685)
+  13           * @version       查看doc内version文件 版本说明
+  14           * @Software    MDK5.27
+  15           * @Target core   STC8G8K64S4
+  16           * @Taobao      https://seekfree.taobao.com/
+  17           * @date          2020-4-14
+  18           *********************************************************************************************************
+             -***********/
+  19          
+  20          #include "zf_uart.h"
+  21          #include "board.h"
+  22          
+  23          uint8 busy[5];         //接收忙标志位
+  24          
+  25          uint8 xdata uart1_tx_buff[UART1_TX_BUFFER_SIZE];  //发送缓冲
+  26          uint8 xdata uart1_rx_buff[UART1_RX_BUFFER_SIZE];  //接收缓冲
+  27          
+  28          
+  29          //--------------------------------------------------------------------------------------------------------
+             ------------
+  30          //  @brief      串口初始化
+  31          //  @param      uart_n          串口模块号(USART_1,USART_2,USART_3,USART_4)
+  32          //  @param      uart_rx_pin     串口波特率
+  33          //  @param      uart_tx_pin     串口接收发送引脚
+  34          //  @param      baud          串口接收发送引脚
+  35          //  @param      tim_n         使用tim_n作为串口波特率发生器(TIM1-TIM4)
+  36          //  @return     NULL            
+  37          //  Sample usage:               uart_init(USART_1,115200,UART1_RX_P30_TX_P31);       // 初始化串口1 波特率
+             -115200 发送引脚使用P31 接收引脚使用P30
+  38          //  @note                       串口1使用 定时器1或者定时器2 作为波特率发生器。
+  39          //                串口2使用 定时器2        作为波特率发生器。
+  40          //                串口3使用 定时器3或者定时器2 作为波特率发生器。
+  41          //                串口4使用 定时器4或者定时器2 作为波特率发生器。
+  42          //                              STC8G仅有 定时器0-定时器4，这5个定时器。
+  43          //                编码器采集数据也需要定时器作为外部计数。
+  44          //--------------------------------------------------------------------------------------------------------
+             ------------
+  45          void uart_init(UARTN_enum uart_n, UARTPIN_enum uart_rx_pin, UARTPIN_enum uart_tx_pin, uint32 baud, TIMN_en
+             -um tim_n)
+  46          {
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 2   
+
+  47   1          uint16 brt;
+  48   1          //65536-SYSclk/baud/4=brt
+  49   1          brt = 65536 - sys_clk/baud/4;
+  50   1      
+  51   1        switch(uart_n)
+  52   1        {
+  53   2          case UART_1:
+  54   2          {
+  55   3            if(TIM_1 == tim_n)
+  56   3            {
+  57   4              SCON |= 0x50;
+  58   4              TMOD |= 0x00;
+  59   4              TL1 = brt;
+  60   4              TH1 = brt >> 8;
+  61   4              AUXR |= 0x40;
+  62   4              TR1 = 1;
+  63   4              busy[1] = 0;
+  64   4            }
+  65   3            else if(TIM_2 == tim_n)
+  66   3            {
+  67   4              SCON |= 0x50;
+  68   4              T2L = brt;
+  69   4              T2H = brt >> 8;
+  70   4              AUXR |= 0x15;
+  71   4            }
+  72   3            P_SW1 &= ~(0x03<<6);
+  73   3            if((UART1_RX_P30 == uart_rx_pin) && (UART1_TX_P31 == uart_tx_pin))
+  74   3            {
+  75   4              P_SW1 |= 0x00;
+  76   4            }
+  77   3            else if((UART1_RX_P36 == uart_rx_pin) && (UART1_TX_P37 == uart_tx_pin))
+  78   3            {
+  79   4              P_SW1 |= 0x40;
+  80   4            }
+  81   3            else if((UART1_RX_P16 == uart_rx_pin) && (UART1_TX_P17 == uart_tx_pin))
+  82   3            {
+  83   4              P_SW1 |= 0x80;
+  84   4            }
+  85   3            else if((UART1_RX_P43 == uart_rx_pin) && (UART1_TX_P44 == uart_tx_pin))
+  86   3            {
+  87   4              P_SW1 |= 0xc0;
+  88   4            }
+  89   3            busy[1] = 0;
+  90   3            ES = 1;
+  91   3            break;
+  92   3          }
+  93   2          
+  94   2          case UART_2:
+  95   2          {
+  96   3            if(TIM_2 == tim_n)
+  97   3            {
+  98   4              S2CON |= 0x10;
+  99   4              T2L = brt;
+ 100   4              T2H = brt >> 8;
+ 101   4              AUXR |= 0x14;
+ 102   4            }
+ 103   3            
+ 104   3            P_SW2 &= ~(0x01<<0);
+ 105   3            if((UART2_RX_P10 == uart_rx_pin) && (UART2_TX_P11 == uart_tx_pin))
+ 106   3            {
+ 107   4              P_SW2 |= 0x00;
+ 108   4            }
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 3   
+
+ 109   3            else if((UART2_RX_P46 == uart_rx_pin) && (UART2_TX_P47 == uart_tx_pin))
+ 110   3            {
+ 111   4              P_SW2 |= 0x01;
+ 112   4            }
+ 113   3            
+ 114   3            IE2 |= 0x01 << 0; //允许串行口2中断
+ 115   3            busy[2] = 0;
+ 116   3            break;
+ 117   3          }
+ 118   2          
+ 119   2          case UART_3:
+ 120   2          {
+ 121   3            if(TIM_2 == tim_n)
+ 122   3            {
+ 123   4              S2CON |= 0x10;
+ 124   4              T2L = brt;
+ 125   4              T2H = brt >> 8;
+ 126   4              AUXR |= 0x14;
+ 127   4            }
+ 128   3            else if(TIM_3 == tim_n)
+ 129   3            {
+ 130   4              S3CON |= 0x50;
+ 131   4              T3L = brt;
+ 132   4              T3H = brt >> 8;
+ 133   4              T4T3M |= 0x0a;
+ 134   4            }
+ 135   3            
+ 136   3            P_SW2 &= ~(0x01<<1);
+ 137   3            if((UART3_RX_P00 == uart_rx_pin) && (UART3_TX_P01 == uart_tx_pin))
+ 138   3            {
+ 139   4              P_SW2 |= 0x00;
+ 140   4            }
+ 141   3            else if((UART3_RX_P50 == uart_rx_pin) && (UART3_TX_P51 == uart_tx_pin))
+ 142   3            {
+ 143   4              P_SW2 |= 0x02;
+ 144   4            }
+ 145   3            
+ 146   3            IE2 |= 0x01<<3; //允许串行口3中断
+ 147   3            busy[3] = 0;
+ 148   3            break;
+ 149   3          }
+ 150   2          
+ 151   2          case UART_4:
+ 152   2          {
+ 153   3            if(TIM_2 == tim_n)
+ 154   3            {
+ 155   4              S4CON |= 0x10;
+ 156   4              T2L = brt;
+ 157   4              T2H = brt >> 8;
+ 158   4              AUXR |= 0x14;
+ 159   4            }
+ 160   3            else if(TIM_4 == tim_n)
+ 161   3            {
+ 162   4              S4CON |= 0x50;
+ 163   4              T4L = brt;
+ 164   4              T4H = brt >> 8;
+ 165   4              T4T3M |= 0xa0;
+ 166   4            }
+ 167   3      
+ 168   3            P_SW2 &= ~(0x01<<2);
+ 169   3            if((UART4_RX_P02 == uart_rx_pin) && (UART4_TX_P03 == uart_tx_pin))
+ 170   3            {
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 4   
+
+ 171   4              P_SW2 |= 0x00;
+ 172   4            }
+ 173   3            else if((UART4_RX_P52 == uart_rx_pin) && (UART4_TX_P53 == uart_tx_pin))
+ 174   3            {
+ 175   4              P5M0 = 0x00;
+ 176   4              P5M1 = 0x01<<2;//P5.2 需要设置为高阻
+ 177   4              P_SW2 |= 0x04;
+ 178   4            }
+ 179   3            IE2 |= 0x01<<4; //允许串行口4中断
+ 180   3            busy[4] = 0;
+ 181   3            break;
+ 182   3          } 
+ 183   2        }
+ 184   1      }
+ 185          
+ 186          
+ 187          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 188          //  @brief      串口字节输出
+ 189          //  @param      uart_n          串口模块号(USART_1,USART_2,USART_3,USART_4)
+ 190          //  @param      dat             需要发送的字节
+ 191          //  @return     void        
+ 192          //  Sample usage:               uart_putchar(UART_1,0xA5);       // 串口1发送0xA5
+ 193          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 194          void uart_putchar(UARTN_enum uart_n,uint8 dat)
+ 195          {
+ 196   1        switch(uart_n)
+ 197   1        {
+ 198   2          case UART_1:
+ 199   2            while (busy[1]);
+ 200   2            busy[1] = 1;
+ 201   2            SBUF = dat;
+ 202   2              break;
+ 203   2          case UART_2:
+ 204   2            while (busy[2]);
+ 205   2            busy[2] = 1;
+ 206   2            S2BUF = dat;
+ 207   2              break;
+ 208   2          case UART_3:
+ 209   2            while (busy[3]);
+ 210   2            busy[3] = 1;
+ 211   2            S3BUF = dat;
+ 212   2              break;
+ 213   2          case UART_4:
+ 214   2            while (busy[4]);
+ 215   2            busy[4] = 1;
+ 216   2            S4BUF = dat;
+ 217   2              break;
+ 218   2        }
+ 219   1      }
+ 220          
+ 221          
+ 222          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 223          //  @brief      串口发送数组
+ 224          //  @param      uart_n          串口模块号(USART_1,USART_2,USART_3,USART_4)
+ 225          //  @param      *buff           要发送的数组地址
+ 226          //  @param      len             发送长度
+ 227          //  @return     void
+ 228          //  Sample usage:               uart_putbuff(UART_1,&a[0],5);
+ 229          //--------------------------------------------------------------------------------------------------------
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 5   
+
+             ------------
+ 230          void uart_putbuff(UARTN_enum uart_n,uint8 *p,uint16 len)
+ 231          {
+ 232   1          while(len--)
+ 233   1              uart_putchar(uart_n,*p++);
+ 234   1      }
+ 235          
+ 236          
+ 237          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 238          //  @brief      串口发送字符串
+ 239          //  @param      uart_n          串口模块号(USART_1,USART_2,USART_3,USART_4)
+ 240          //  @param      *str            要发送的字符串地址
+ 241          //  @return     void
+ 242          //  Sample usage:               uart_putstr(UART_1,"i lvoe you"); 
+ 243          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 244          void uart_putstr(UARTN_enum uart_n,uint8 *str)
+ 245          {
+ 246   1          while(*str)
+ 247   1          {
+ 248   2              uart_putchar(uart_n,*str++);
+ 249   2          }
+ 250   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    602    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =    205      17
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

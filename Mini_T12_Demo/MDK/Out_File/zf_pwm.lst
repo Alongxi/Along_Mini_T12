@@ -1,0 +1,253 @@
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ZF_PWM
+OBJECT MODULE PLACED IN .\Out_File\zf_pwm.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\seekfree_libraries\zf_pwm.c LARGE OPTIMIZE(9,SPEED)
+                    - BROWSE INCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\
+                    -inc;..\USER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\z
+                    -f_pwm.lst) TABS(2) OBJECT(.\Out_File\zf_pwm.obj)
+
+line level    source
+
+   1          /*********************************************************************************************************
+             -************
+   2           * COPYRIGHT NOTICE
+   3           * Copyright (c) 2020,Öð·É¿Æ¼¼
+   4           * All rights reserved.
+   5           * ¼¼ÊõÌÖÂÛQQÈº£ºÒ»Èº£º179029047(ÒÑÂú)  ¶þÈº£º244861897(ÒÑÂú)  ÈýÈº£º824575535
+   6           *
+   7           * ÒÔÏÂËùÓÐÄÚÈÝ°æÈ¨¾ùÊôÖð·É¿Æ¼¼ËùÓÐ£¬Î´¾­ÔÊÐí²»µÃÓÃÓÚÉÌÒµÓÃÍ¾£¬
+   8           * »¶Ó­¸÷Î»Ê¹ÓÃ²¢´«²¥±¾³ÌÐò£¬ÐÞ¸ÄÄÚÈÝÊ±±ØÐë±£ÁôÖð·É¿Æ¼¼µÄ°æÈ¨ÉùÃ÷¡£
+   9           *
+  10           * @file          pwm
+  11           * @company       ³É¶¼Öð·É¿Æ¼¼ÓÐÏÞ¹«Ë¾
+  12           * @author        Öð·É¿Æ¼¼(QQ790875685)
+  13           * @version       ²é¿´docÄÚversionÎÄ¼þ °æ±¾ËµÃ÷
+  14           * @Software    MDK5.27
+  15           * @Target core   STC8G8K64S4
+  16           * @Taobao      https://seekfree.taobao.com/
+  17           * @date          2020-4-14
+  18           *********************************************************************************************************
+             -***********/
+  19          
+  20          #include "zf_pwm.h"
+  21          #include "board.h"
+  22          #include "zf_gpio.h"
+  23          
+  24          //--------------------------------------------------------------------------------------------------------
+             ------------
+  25          //  @brief      PWM³õÊ¼»¯
+  26          //  @param      pwmch       PWMÍ¨µÀºÅ¼°Òý½Å
+  27          //  @param      freq        PWMÆµÂÊ(64Hz-3MHz)
+  28          //  @param      duty        PWMÕ¼¿Õ±È
+  29          //  @return     void
+  30          //  Sample usage:           pwm_init(PWM0_P00, 100, 5000);     //³õÊ¼»¯PWM0  Ê¹ÓÃÒý½ÅP0.0  Êä³öPWMÆµÂÊ100H
+             -Z   Õ¼¿Õ±ÈÎª°Ù·ÖÖ® 5000/PWM_DUTY_MAX*100
+  31          //              PWM_DUTY_MAXÔÚfsl_pwm.hÎÄ¼þÖÐ Ä¬ÈÏÎª10000
+  32          //--------------------------------------------------------------------------------------------------------
+             ------------
+  33          void pwm_init(PWMCH_enum pwmch,uint32 freq, uint16 duty)
+  34          {
+  35   1        uint16 match_temp;
+  36   1          uint16 period_temp; 
+  37   1        uint8 freq_div = 0;
+  38   1        
+  39   1        gpio_mode(pwmch,GPO_PP);          //ÉèÖÃÎªÍÆÍìÊä³ö
+  40   1        
+  41   1        PWMSET |= 1 << (pwmch>>4);
+  42   1        
+  43   1        P_SW2 |= 0x80;
+  44   1        
+  45   1        freq_div = (sys_clk/freq)>>15;
+  46   1        
+  47   1      //  if(freq_div >= 15) printf("ÆµÂÊÌ«µÍ");
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 2   
+
+  48   1        
+  49   1        period_temp = sys_clk/freq/(freq_div + 1);    //ÖÜÆÚ
+  50   1        match_temp = period_temp*((float)duty/PWM_DUTY_MAX);  //Õ¼¿Õ±È
+  51   1      
+  52   1        if(pwmch < PWM3_P30)
+  53   1        {
+  54   2          (*(unsigned char volatile xdata *)(0xFF02 + 0x50 * (pwmch>>4))) = freq_div;                 //ÉèÖÃpwmnÆµÂÊÎª ÏµÍ
+             -³Ê±ÖÓ/freq_div
+  55   2          (*(unsigned int  volatile xdata *)(0xFF00 + 0x50 * (pwmch>>4))) = (uint16)period_temp;            //ÉèÖÃPWMnÖ
+             -ÜÆÚÎªperiod_temp¸ö PWM Ê±ÖÓ
+  56   2          (*(unsigned int  volatile xdata *)(0xFF10 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = (uint16)match_te
+             -mp; // ÔÚ¼ÆÊýÖµÎª match_temp µØ·½ pwmch Í¨µÀÊä³öµÍµçÆ½
+  57   2          //(*(unsigned int  volatile xdata *)(0xFF12 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = 0;        // ÔÚ¼ÆÊ
+             -ýÖµÎª 0 µØ·½ pwmch Í¨µÀÊä³ö¸ßµçÆ½
+  58   2          (*(unsigned char volatile xdata *)(0xFF14 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) |= 0x80;        // Ê¹Ä
+             -Ü pwmch Êä³ö
+  59   2        }
+  60   1        else
+  61   1        {
+  62   2          (*(unsigned char volatile xdata *)(0xFC02 + 0x50 * ((pwmch-PWM3_P30)>>4))) = freq_div;              //ÉèÖÃpwmnÆ
+             -µÂÊÎª ÏµÍ³Ê±ÖÓ/freq_div
+  63   2          (*(unsigned int  volatile xdata *)(0xFC00 + 0x50 * ((pwmch-PWM3_P30)>>4))) = period_temp;             //ÉèÖÃPW
+             -MnÖÜÆÚÎªperiod_temp¸ö PWM Ê±ÖÓ
+  64   2          (*(unsigned int  volatile xdata *)(0xFC10 + 0x50 * ((pwmch-PWM3_P30)>>4) + (pwmch&0X0F) * 0x08)) = match
+             -_temp;   // ÔÚ¼ÆÊýÖµÎª match_temp µØ·½ pwmch Í¨µÀÊä³öµÍµçÆ½
+  65   2          //  (*(unsigned int  volatile xdata *)(0xFF12 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = 0;          // ÔÚ¼
+             -ÆÊýÖµÎª 0 µØ·½ pwmch Í¨µÀÊä³ö¸ßµçÆ½
+  66   2          (*(unsigned char volatile xdata *)(0xFC14 + 0x50 * ((pwmch-PWM3_P30)>>4) + (pwmch&0X0F) * 0x08)) |= 0x80
+             -;    // Ê¹ÄÜ pwmch Êä³ö
+  67   2        }
+  68   1        switch(pwmch>>4)
+  69   1        {
+  70   2          case 0:
+  71   2            PWMCFG01 |= 0x01; 
+  72   2            break;
+  73   2          case 1:
+  74   2            PWMCFG01 |= 0x01<<4; 
+  75   2            break;
+  76   2          case 2:
+  77   2            PWMCFG23 |= 0x01; 
+  78   2            break;
+  79   2          case 3:
+  80   2            PWMCFG23 |= 0x01<<4; 
+  81   2            break;
+  82   2          case 4:
+  83   2            PWMCFG45 |= 0x01; 
+  84   2            break;
+  85   2          case 5:
+  86   2            PWMCFG45 |= 0x01<<4; 
+  87   2            break;
+  88   2        } 
+  89   1        P_SW2 &= ~0x80;
+  90   1      }
+  91          
+  92          //--------------------------------------------------------------------------------------------------------
+             ------------
+  93          //  @brief      PWMÕ¼¿Õ±ÈÉèÖÃ
+  94          //  @param      pwmch       PWMÍ¨µÀºÅ¼°Òý½Å
+  95          //  @param      duty        PWMÕ¼¿Õ±È
+  96          //  @return     void
+  97          //  Sample usage:           pwm_duty(PWM0_P00, 5000);     //³õÊ¼»¯PWM0  Ê¹ÓÃÒý½ÅP0.0  Êä³öPWMÆµÂÊ50HZ   Õ¼
+             -¿Õ±ÈÎª°Ù·ÖÖ® 5000/PWM_DUTY_MAX*100
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 3   
+
+  98          //              PWM_DUTY_MAXÔÚfsl_pwm.hÎÄ¼þÖÐ Ä¬ÈÏÎª50000
+  99          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 100          void pwm_duty(PWMCH_enum pwmch, uint16 duty)
+ 101          {
+ 102   1        uint16 match_temp;
+ 103   1        
+ 104   1        P_SW2 |= 0x80;
+ 105   1        
+ 106   1      
+ 107   1        
+ 108   1        if(pwmch < PWM3_P30)
+ 109   1        {
+ 110   2          match_temp = (uint16)(*(unsigned int volatile xdata *)(0xFF00 + 0x50 * (pwmch>>4))) * ((float)duty/PWM_D
+             -UTY_MAX);        //Õ¼¿Õ±È
+ 111   2          (*(unsigned int  volatile xdata *)(0xFF10 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = match_temp;         
+             -      // ÔÚ¼ÆÊýÖµÎª 0H µØ·½ pwmch Í¨µÀÊä³öµÍµçÆ½
+ 112   2        }
+ 113   1        else
+ 114   1        {
+ 115   2          match_temp = (uint16)(*(unsigned int volatile xdata *)(0xFC00 + 0x50 * ((pwmch-PWM3_P30)>>4))) * ((float
+             -)duty/PWM_DUTY_MAX);  //Õ¼¿Õ±È
+ 116   2          (*(unsigned int volatile xdata *)(0xFC10 + 0x50 * ((pwmch-PWM3_P30)>>4) + (pwmch&0X0F) * 0x08)) = match_
+             -temp;          // ÔÚ¼ÆÊýÖµÎª 0H µØ·½ pwmch Í¨µÀÊä³öµÍµçÆ½
+ 117   2        }
+ 118   1        
+ 119   1      
+ 120   1      
+ 121   1      //  (*(unsigned int  volatile xdata *)(0xFF12 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = 0;        // ÔÚ¼ÆÊý
+             -ÖµÎª duty µØ·½ pwmch Í¨µÀÊä³ö¸ßµçÆ½
+ 122   1        P_SW2 &= ~0x80;
+ 123   1        
+ 124   1      }
+ 125          
+ 126          
+ 127          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 128          //  @brief      PWMÆµÂÊÉèÖÃ
+ 129          //  @param      pwmch       PWMÍ¨µÀºÅ¼°Òý½Å
+ 130          //  @param      freq        PWMÆµÂÊ
+ 131          //  @param      duty        PWMÕ¼¿Õ±È
+ 132          //  @return     void
+ 133          //  Sample usage:           pwm_freq(PWM0_P00, 50, 5000);     //ÐÞ¸Ä»¯PWM0  Ê¹ÓÃÒý½ÅP0.0  Êä³öPWMÆµÂÊ50HZ 
+             -  Õ¼¿Õ±ÈÎª°Ù·ÖÖ® 5000/PWM_DUTY_MAX*100
+ 134          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 135          void pwm_freq(PWMCH_enum pwmch, uint32 freq, uint16 duty)
+ 136          {
+ 137   1        uint32 match_temp;
+ 138   1          uint32 period_temp; 
+ 139   1        uint8 freq_div = 0;
+ 140   1        
+ 141   1        freq_div = (sys_clk/freq)>>15;
+ 142   1        period_temp = sys_clk/freq/(freq_div + 1);    //ÖÜÆÚ
+ 143   1        match_temp = period_temp*((float)duty/PWM_DUTY_MAX);  //Õ¼¿Õ±È
+ 144   1        
+ 145   1        P_SW2 |= 0x80;
+ 146   1        
+ 147   1        
+ 148   1        if(pwmch < PWM3_P30)
+ 149   1        {
+ 150   2          (*(unsigned char volatile xdata *)(0xFF02 + 0x50 * (pwmch>>4))) = freq_div;             //ÉèÖÃpwmnÆµÂÊÎª ÏµÍ³Ê
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 4   
+
+             -±ÖÓ/freq_div
+ 151   2          (*(unsigned int  volatile xdata *)(0xFF00 + 0x50 * (pwmch>>4))) = period_temp;            //ÉèÖÃPWMnÖÜÆÚÎªper
+             -iod_temp¸ö PWM Ê±ÖÓ
+ 152   2          (*(unsigned int  volatile xdata *)(0xFF10 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = match_temp; // Ô
+             -Ú¼ÆÊýÖµÎª match_temp µØ·½ pwmch Í¨µÀÊä³öµÍµçÆ½
+ 153   2          //  (*(unsigned int  volatile xdata *)(0xFF12 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = 0;      // ÔÚ¼ÆÊ
+             -ýÖµÎª 0 µØ·½ pwmch Í¨µÀÊä³ö¸ßµçÆ½
+ 154   2        }
+ 155   1        else
+ 156   1        {
+ 157   2          (*(unsigned char volatile xdata *)(0xFC02 + 0x50 * ((pwmch-PWM3_P30)>>4))) = freq_div;              //ÉèÖÃpwmnÆ
+             -µÂÊÎª ÏµÍ³Ê±ÖÓ/freq_div
+ 158   2          (*(unsigned int  volatile xdata *)(0xFC00 + 0x50 * ((pwmch-PWM3_P30)>>4))) = period_temp;             //ÉèÖÃPW
+             -MnÖÜÆÚÎªperiod_temp¸ö PWM Ê±ÖÓ
+ 159   2          (*(unsigned int  volatile xdata *)(0xFC10 + 0x50 * ((pwmch-PWM3_P30)>>4) + (pwmch&0X0F) * 0x08)) = match
+             -_temp; // ÔÚ¼ÆÊýÖµÎª match_temp µØ·½ pwmch Í¨µÀÊä³öµÍµçÆ½
+ 160   2          //  (*(unsigned int  volatile xdata *)(0xFF12 + 0x50 * (pwmch>>4) + (pwmch&0X0F) * 0x08)) = 0;          // ÔÚ¼
+             -ÆÊýÖµÎª 0 µØ·½ pwmch Í¨µÀÊä³ö¸ßµçÆ½
+ 161   2        }
+ 162   1        switch(pwmch>>4)
+ 163   1        {
+ 164   2          case 0:
+ 165   2            PWMCFG01 |= 0x01; 
+ 166   2            break;
+ 167   2          case 1:
+ 168   2            PWMCFG01 |= 0x01<<4; 
+ 169   2            break;
+ 170   2          case 2:
+ 171   2            PWMCFG23 |= 0x01; 
+ 172   2            break;
+ 173   2          case 3:
+ 174   2            PWMCFG23 |= 0x01<<4; 
+ 175   2            break;
+ 176   2          case 4:
+ 177   2            PWMCFG45 |= 0x01; 
+ 178   2            break;
+ 179   2          case 5:
+ 180   2            PWMCFG45 |= 0x01<<4; 
+ 181   2            break;
+ 182   2        } 
+ 183   1        
+ 184   1        P_SW2 &= ~0x80;
+ 185   1      }
+ 186          
+ 187          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    926    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      33
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

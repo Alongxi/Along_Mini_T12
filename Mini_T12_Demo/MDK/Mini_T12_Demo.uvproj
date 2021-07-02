@@ -492,9 +492,9 @@
               <FilePath>..\USER\src\main.c</FilePath>
             </File>
             <File>
-              <FileName>version.txt</FileName>
+              <FileName>使用说明.txt</FileName>
               <FileType>5</FileType>
-              <FilePath>..\..\Libraries\version.txt</FilePath>
+              <FilePath>..\使用说明\使用说明.txt</FilePath>
             </File>
           </Files>
         </Group>

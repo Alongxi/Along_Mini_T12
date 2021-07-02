@@ -1,0 +1,1446 @@
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_MENU
+OBJECT MODULE PLACED IN .\Out_File\user_menu.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\GUI\user_menu.c LARGE OPTIMIZE(9,SPEED) BROWSE INCD
+                    -IR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USER\
+                    -src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\user_menu.lst
+                    -) TABS(2) OBJECT(.\Out_File\user_menu.obj)
+
+line level    source
+
+   1          /*
+   2          ------------------------------------------------------------
+   3          官方网址：www.alongxii.xyz
+   4          软件作者：Along
+   5          QQ：1259306443
+   6          邮箱：alongxii@outlook.com/1259306443@qq.com
+   7          硬件作者：LI JIAN
+   8          QQ：1557731308
+   9          邮箱：jian19990317@qq.com
+  10          源码底层采用逐飞科技开源库，在此基础上进行二次开发，代码全部开源至Github。
+  11          商用前请联系作者Along进行相关咨询。
+  12          ------------------------------------------------------------
+  13          2021.7.2
+  14          源码最后更新至V1.3.1版本
+  15          功能包括：
+  16          1.参数整定
+  17          2.屏幕设置
+  18          3.基础设置
+  19          4.休眠时间设置
+  20          5.温度阈值设置
+  21          6.阻焊校准设置
+  22          7.电源协议管理设置
+  23          8.菜单UI设置
+  24          具体设置使用方法在www.alongxii.xyz中有详细介绍。
+  25          后续网址可能会更替为www.alongxii.com/www.alongxii.cn。
+  26          ------------------------------------------------------------
+  27          源码相关文件介绍：
+  28          *user_gpio.h:引脚映射的头文件，可根据自己电路的布局修改引脚映射，除ADC接口需采用P1口以外，
+  29          IIC、SPI接口均采用模拟接口，理论上可任意映射。
+  30          main.c:此文件中主要提供软件初始化配置，及菜单等功能程序调用。
+  31          user_menu.c:此文件用于菜单UI使用。
+  32          user_adc.c:此文件用于ADC信号采集，电压值转换、温度转换。
+  33          烙铁温度读取采用分段一次函数，依次对每个100度分段的adc值进行运算得到对应温度值。
+  34          电压采集使用电阻分压。
+  35          user_pid.c:此文件采用位置式PID进行控温，如有更先进控制方案，可在此文件中修改控制函数。
+  36          user_button.c:此文件提供相关按键中断函数与操作逻辑函数，功能调用方式。
+  37          ------------------------------------------------------------
+  38          */
+  39          #include "headfile.h"
+  40          #include "user_menu.h"
+  41          
+  42          uint8 menu_flag = 0;//定义菜单的标志位，0：主界面 1：一级菜单 2：二级菜单
+  43          int8 page_flag = 0;//定义一个页面标志位， 0：第一个功能界面 1：第二个功能界面
+  44          uint8 select_flag = 0;//定义一个在二级菜单下是否确认的flag  0：未确认  1：已确认
+  45          
+  46          int8 page_left = 0;
+  47          int8 page_center = 0;
+  48          int8 page_right = 0;
+  49          //-----------------------//
+  50          int8 last_left = 0;
+  51          int8 last_hide = 0;
+  52          int8 last_center = 0;
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 2   
+
+  53          int8 last_right = 0;
+  54          //----------------------//
+  55          int8 page_2_up[page_max+1] = {0};
+  56          int8 page_2_center[page_max+1] = {0};
+  57          int8 page_2_down[page_max+1] = {0};
+  58          //----------------------//
+  59          uint8 icon_size_flag = 0;
+  60          uint8 row_derection = 1;//滚动方向
+  61          uint8 row_speed = 1;//滚动速率
+  62          //----------------------//
+  63          int8 row_flag = 0;//滚动标志位  -1为左移  1为右移
+  64          int8 BEEP_flag = 0;
+  65          int8 Strong_temp_flag = 0;//是否开启强温模式
+  66          
+  67          uint8 TEMP_SET_INIT_FLAG = 1;
+  68          
+  69          //0亮调节基础数据存储协,
+  70          //1议一二三四五六七阈值,
+  71          //2限零壹贰叁肆伍陆柒阶,
+  72          //3温滚动方向速率菜单冷
+  73          //4端补偿全局参数整定休
+  74          //5眠时间设置屏幕步度电
+  75          //6源管理焊咀校准图标大
+  76          //7小滚动上下分秒设比例
+  77          //8积分微反色显示翻转恢
+  78          //9复出厂进强初开始蜂鸣
+  79          //10音量开关于备欠压保护
+  80          //11机自动
+  81          uint8 code page_one_num[page_max+1][4] =
+  82          {
+  83              {45,46,47,48},//  "参数整定",
+  84              {55,56,53,54},//  "屏幕设置",
+  85              {3, 4,53,54}, //  "基础设置",
+  86              {49,50,53,54},//  "休眠设置",
+  87              {30,58,18,19},//  "温度阈值",
+  88              {63,64,65,66},//  "焊咀校准",
+  89              {59,60,61,62},//  "电源管理",
+  90              {37,38,53,54},//  "菜单设置",
+  91              {103,104,53,105} //关于设备
+  92          };
+  93          uint8 code page_two_num[page_max+1][10][4] =
+  94          {
+  95              {   //第一级页面中字条数
+  96                  {78,79,47,48},//"比例整定",
+  97                  {80,81,47,48},//"积分整定",
+  98                  {82,81,47,48},//"微分整定",
+  99              },
+ 100              {   //第二级页面中字条数
+ 101                  {83,84,85,86},//"反色显示",
+ 102                  {73,74,87,88},//"上下翻转",
+ 103                  {0,58, 1, 2},//"亮度调节",
+ 104              },
+ 105              {
+ 106                  {5,6,7,8},//"数据存储",
+ 107                  {89,90,91,92},//恢复出厂设置
+ 108                  {98,99,102,103},//蜂鸣开关
+ 109                  {100,101,69,70},//音量大小
+ 110          
+ 111              },
+ 112              {
+ 113                  {75,5,53,48},//"分数设定",
+ 114                  {76,5,53,48},//"秒数设定",
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 3   
+
+ 115                  {49,50,102,103},//休眠开关
+ 116                  {103,110,51,52},//关机时间
+ 117                  {111,112,103,110},//自动关机
+ 118              },
+ 119              {
+ 120                  {30,58,74,20},//"温度下限",
+ 121                  {30,58,73,20},//"温度上限",
+ 122                  {95,19,53,48},//初值设定
+ 123                  {30,58,57,93},//温度步进
+ 124                  {94,30,53,54},//强温设置
+ 125                  {49,50,30,58},//休眠温度
+ 126          
+ 127              },
+ 128              {
+ 129                  //更换烙铁头（待添加）
+ 130                  {21,29,65,66},//"零阶校准",
+ 131                  {11,29,65,66},//"一阶校准",
+ 132                  {12,29,65,66},//"二阶校准",
+ 133                  {13,29,65,66},//"三阶校准",
+ 134                  {14,29,65,66},//"四阶校准",
+ 135                  {15,29,65,66},//"五阶校准",
+ 136                  {16,29,65,66},//"六阶校准",
+ 137              },
+ 138              {
+ 139                  {9,10,53,54},//"协议设置",
+ 140                  {106,107,53,54},//欠压设置
+ 141                  {106,107,108,109},//欠压保护
+ 142              },
+ 143              {
+ 144                  {67,68,69,70},//"图标大小",
+ 145                  {31,32,33,34},//"滚动方向",
+ 146              },
+ 147          
+ 148          };
+ 149          uint8 code page_two_num_max[page_max+1] =//定义所有二级页面中参数的数据最大量
+ 150          {3,3,4,5,6,7,3,2};
+ 151          //三个维度分别为 一级页面最大个数、二级页面最大个数、二级页面长度
+ 152          
+ 153          //------------------//
+ 154          //两个维度分别为 一级页面最大个数、二级页面最大参数个数
+ 155          //用做中间变量，显示参数变量值
+ 156          int16  code page_two_data_min[page_max+1][10] =
+ 157          {
+ 158              {0,0,0},//p,i,d
+ 159              {0,0,0},
+ 160              {0,0,0,0},
+ 161              {0,0,0,1,0},
+ 162              {0,300,0,0,0,0},
+ 163              {0,0,0,0,0,0,0},
+ 164              {0,0,0},
+ 165              {0,0},
+ 166          };
+ 167          int16  code page_two_data_max[page_max+1][10] =
+ 168          {
+ 169              {255,255,255},//p,i,d
+ 170              {1,1,255},
+ 171              {1,1,1,99},
+ 172              {30,60,1,99,1},
+ 173              {300,600,500,50,600,300},
+ 174              {1023,1023,1023,1023,1023,1023,1023},
+ 175              {4,30,1},//协议设置
+ 176              {1,1},
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 4   
+
+ 177          };
+ 178          uint8 data save_data_A[32] = {0};
+ 179          uint8 data save_data_B[32] = {0};
+ 180          int16 code page_two_init_data[page_max+1][10] =//出厂数据
+ 181          {
+ 182              {13,2,17},//p,i,d
+ 183              {0,0,255},
+ 184              {0,0,1,50},
+ 185              {3,0,1,1,1},
+ 186              {200,500,320,10,400,200},
+ 187              {40,157,289,469,676,759,931},
+ 188              {4,15,0},
+ 189              {0,1},
+ 190          };
+ 191          int16 xdata page_two_data[page_max+1][10] =
+ 192          {
+ 193              {0},//p,i,d
+ 194          };
+ 195          //第二页的翻页标志
+ 196          int8  page_2_flag[page_max+1] = {0};
+ 197          
+ 198          void BEEP_handle(void)
+ 199          {
+ 200   1          if(BEEP_ON_FLAG == 1)
+ 201   1          {
+ 202   2              if(BEEP_flag == 1)
+ 203   2              {
+ 204   3                  pwm_duty(BEEP, BEEP_VOLUME);
+ 205   3              }
+ 206   2              else
+ 207   2              {
+ 208   3                  pwm_duty(BEEP, 0);
+ 209   3              }
+ 210   2          }
+ 211   1          else
+ 212   1          {
+ 213   2              BEEP_flag = 0;
+ 214   2          }
+ 215   1      }
+ 216          void OLED_OFF_handle(void)
+ 217          {
+ 218   1          if(auto_oled_off_flag == 1)//熄屏
+ 219   1          {
+ 220   2              OLED_WR_Byte(0X8D, OLED_CMD);  //SET DCDC命令
+ 221   2              OLED_WR_Byte(0X10, OLED_CMD);  //DCDC OFF
+ 222   2              OLED_WR_Byte(0XAE, OLED_CMD);  //DISPLAY OFF
+ 223   2              auto_oled_off_flag = 0;
+ 224   2          }
+ 225   1          if(oled_light_flag == 1)
+ 226   1          {
+ 227   2              OLED_WR_Byte(0X8D, OLED_CMD);  //SET DCDC命令
+ 228   2              OLED_WR_Byte(0X14, OLED_CMD);  //DCDC ON
+ 229   2              OLED_WR_Byte(0XAF, OLED_CMD);  //DISPLAY ON
+ 230   2              oled_light_flag = 0;
+ 231   2          }
+ 232   1      }
+ 233          void STRONG_TEMP_handle(void)//开启强温模式
+ 234          {
+ 235   1          if(SLEEP_INIT_FLAG == 0)
+ 236   1              //if((TEMP_SET_INIT_FLAG == 1)&&(SLEEP_INIT_FLAG == 0))
+ 237   1          {
+ 238   2              if(Strong_temp_flag == 1)
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 5   
+
+ 239   2              {
+ 240   3                  show_IMG16x16(4,0,5);//强温模式
+ 241   3                  Temp_Set = IRON_TEMP_SET_STRONG;
+ 242   3                  TEMP_SET_INIT_FLAG = 1;
+ 243   3      
+ 244   3              }
+ 245   2              else
+ 246   2              {
+ 247   3                  if(TEMP_SET_INIT_FLAG == 1)
+ 248   3                  {
+ 249   4                      show_IMG16x16(4,0,0);//正常模式
+ 250   4                      Temp_Set = IRON_TEMP_SET_INIT;
+ 251   4                      TEMP_SET_INIT_FLAG = 0;
+ 252   4                  }
+ 253   3              }
+ 254   2          }
+ 255   1          else
+ 256   1          {
+ 257   2      
+ 258   2              show_IMG16x16(4,0,6);//休眠模式
+ 259   2      
+ 260   2          }
+ 261   1          if(sleep_flag == 0)
+ 262   1          {
+ 263   2              if((Strong_temp_flag == 0))
+ 264   2              {
+ 265   3      
+ 266   3                  show_IMG16x16(4,0,0);//加热模式
+ 267   3                  if(TEMP_SET_INIT_FLAG == 1)
+ 268   3                  {
+ 269   4                      Temp_Set = IRON_TEMP_SET_INIT;
+ 270   4                      TEMP_SET_INIT_FLAG = 0;
+ 271   4                  }
+ 272   3              }
+ 273   2          }
+ 274   1      
+ 275   1      }
+ 276          void data_init(void)//恢复出厂
+ 277          {
+ 278   1          int i,j = 0;
+ 279   1          for(i = 0; i< page_max + 1; i++)
+ 280   1          {
+ 281   2              for(j = 0; j < 10; j++)
+ 282   2              {
+ 283   3                  page_two_data[i][j] = page_two_init_data[i][j];
+ 284   3              }
+ 285   2          }
+ 286   1      }
+ 287          
+ 288          //将修改好的数据传递给用来存储eeprom的数组
+ 289          void data_transmit(void)
+ 290          {
+ 291   1          save_data_A[0]  = page_two_data[0][0];//KP
+ 292   1          save_data_A[1]  = page_two_data[0][1];//KI
+ 293   1          save_data_A[2]  = page_two_data[0][2];//KD
+ 294   1          //----------------------------------------------------------//
+ 295   1          save_data_A[3]  = page_two_data[1][0];//
+ 296   1          save_data_A[4]  = page_two_data[1][1];
+ 297   1          save_data_A[5]  = page_two_data[1][2];//亮度
+ 298   1          //----------------------------------------------------------//
+ 299   1          //save_data[6] = page_two_data[2][0];//数据存贮
+ 300   1          //save_data[7] = page_two_data[2][1];//恢复出厂
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 6   
+
+ 301   1          save_data_A[8] = page_two_data[2][2];//蜂鸣开关
+ 302   1          save_data_A[9] = page_two_data[2][3];//音量大小
+ 303   1          //----------------------------------------------------------//
+ 304   1          save_data_A[10]  = page_two_data[3][0];//休眠分钟
+ 305   1          save_data_A[11]  = page_two_data[3][1];//休眠秒钟
+ 306   1          save_data_A[12]  = page_two_data[3][2];//休眠开关
+ 307   1          save_data_A[13]  = page_two_data[3][3];//关机时间
+ 308   1          save_data_A[14]  = page_two_data[3][4];//自动关机
+ 309   1          //----------------------------------------------------------//
+ 310   1          save_data_A[15]  = (uint8)(page_two_data[4][0]/100);//
+ 311   1          save_data_A[16] = (page_two_data[4][0] - 100*save_data_A[15]);
+ 312   1          save_data_A[17] = (uint8)(page_two_data[4][1]/100);//
+ 313   1          save_data_A[18] = (page_two_data[4][1] - 100*save_data_A[17]);
+ 314   1          save_data_A[19] = (uint8)(page_two_data[4][2]/100);
+ 315   1          save_data_A[20] = (page_two_data[4][2] - 100*save_data_A[19]);
+ 316   1          save_data_A[21] = (uint8)(page_two_data[4][3]/100);
+ 317   1          save_data_A[22] = (page_two_data[4][3] - 100*save_data_A[21]);
+ 318   1          save_data_A[23] = (uint8)(page_two_data[4][4]/100);
+ 319   1          save_data_A[24] = (page_two_data[4][4] - 100*save_data_A[23]);
+ 320   1          save_data_A[25] = (uint8)(page_two_data[4][5]/100);
+ 321   1          save_data_A[26] = (page_two_data[4][5] - 100*save_data_A[25]);
+ 322   1          //----------------------------------------------------------//
+ 323   1          save_data_B[0] = (uint8)(page_two_data[5][0]/100);
+ 324   1          save_data_B[1] = (page_two_data[5][0] - 100*save_data_B[0]);
+ 325   1      
+ 326   1          save_data_B[2] = (uint8)(page_two_data[5][1]/100);
+ 327   1          save_data_B[3] = (page_two_data[5][1] - 100*save_data_B[2]);
+ 328   1      
+ 329   1          save_data_B[4] = (uint8)(page_two_data[5][2]/100);
+ 330   1          save_data_B[5] = (page_two_data[5][2] - 100*save_data_B[4]);
+ 331   1      
+ 332   1          save_data_B[6] = (uint8)(page_two_data[5][3]/100);
+ 333   1          save_data_B[7] = (page_two_data[5][3] - 100*save_data_B[6]);
+ 334   1      
+ 335   1          save_data_B[8] = (uint8)(page_two_data[5][4]/100);
+ 336   1          save_data_B[9] = (page_two_data[5][4] - 100*save_data_B[8]);
+ 337   1      
+ 338   1          save_data_B[10] = (uint8)(page_two_data[5][5]/100);
+ 339   1          save_data_B[11] = (page_two_data[5][5] - 100*save_data_B[10]);
+ 340   1      
+ 341   1          save_data_B[12] = (uint8)(page_two_data[5][6]/100);
+ 342   1          save_data_B[13] = (page_two_data[5][6] - 100*save_data_B[12]);
+ 343   1          //----------------------------------------------------------//
+ 344   1          save_data_B[14] = page_two_data[6][0];//协议设置
+ 345   1          save_data_B[15] = page_two_data[6][1];//欠压设置
+ 346   1          save_data_B[16] = page_two_data[6][2];//欠压保护
+ 347   1          //
+ 348   1          save_data_B[17] = page_two_data[7][0];//图标大小
+ 349   1          save_data_B[18] = page_two_data[7][1];//图标方向
+ 350   1          //save_data_B[17] = page_two_data[7][2];//图标速度
+ 351   1      
+ 352   1      }
+ 353          //数据还原
+ 354          void data_restore(void)
+ 355          {
+ 356   1          page_two_data[0][0] = save_data_A[0];//KP
+ 357   1          page_two_data[0][1] = save_data_A[1];//KI
+ 358   1          page_two_data[0][2] = save_data_A[2];//KD
+ 359   1      //
+ 360   1          page_two_data[1][0] = save_data_A[3];//
+ 361   1          page_two_data[1][1] = save_data_A[4];
+ 362   1          page_two_data[1][2] = save_data_A[5];//亮度
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 7   
+
+ 363   1      //
+ 364   1          // page_two_data[2][0];//数据存贮
+ 365   1      
+ 366   1          page_two_data[2][2] = save_data_A[8];//蜂鸣开关
+ 367   1          page_two_data[2][3] = save_data_A[9];//音量大小
+ 368   1      //
+ 369   1          page_two_data[3][0] = save_data_A[10];//休眠分钟
+ 370   1          page_two_data[3][1] = save_data_A[11];//休眠秒钟
+ 371   1          page_two_data[3][2] = save_data_A[12];//休眠开关
+ 372   1          page_two_data[3][3] = save_data_A[13];//关机时间
+ 373   1          page_two_data[3][4] = save_data_A[14];//自动关机
+ 374   1      //
+ 375   1          page_two_data[4][0] = 100*save_data_A[15] + save_data_A[16];//温度下线
+ 376   1          page_two_data[4][1] = 100*save_data_A[17] + save_data_A[18];//温度上限
+ 377   1          page_two_data[4][2] = 100*save_data_A[19] + save_data_A[20];//初值
+ 378   1          page_two_data[4][3] = 100*save_data_A[21] + save_data_A[22];//步进
+ 379   1          page_two_data[4][4] = 100*save_data_A[23] + save_data_A[24];//强温
+ 380   1          page_two_data[4][5] = 100*save_data_A[25] + save_data_A[26];//休眠温度
+ 381   1      //
+ 382   1          page_two_data[5][0] = 100*save_data_B[0] + save_data_B[1];
+ 383   1          page_two_data[5][1] = 100*save_data_B[2] + save_data_B[3];
+ 384   1          page_two_data[5][2] = 100*save_data_B[4] + save_data_B[5];
+ 385   1          page_two_data[5][3] = 100*save_data_B[6] + save_data_B[7];
+ 386   1          page_two_data[5][4] = 100*save_data_B[8] + save_data_B[9];
+ 387   1          page_two_data[5][5] = 100*save_data_B[10] + save_data_B[11];
+ 388   1          page_two_data[5][6] = 100*save_data_B[12] + save_data_B[13];
+ 389   1      //
+ 390   1          page_two_data[6][0] = save_data_B[14];//协议设置
+ 391   1          page_two_data[6][1] = save_data_B[15];//欠压设置
+ 392   1          page_two_data[6][2] = save_data_B[16];//欠压保护
+ 393   1      //
+ 394   1          page_two_data[7][0] = save_data_B[17];//图标大小
+ 395   1          page_two_data[7][1] = save_data_B[18];//图标方向
+ 396   1          //page_two_data[7][2] = save_data_B[17];//图标速度
+ 397   1      
+ 398   1      }
+ 399          void Function_init(void)//实现功能
+ 400          {
+ 401   1      
+ 402   1          SHOW_IRON_TEMP = 0;
+ 403   1          Temp_Set = IRON_TEMP_SET_INIT;
+ 404   1          if(page_two_data[1][0] == 1)//反色显示部分
+ 405   1          {
+ 406   2              OLED_WR_Byte(0xa7,OLED_CMD);
+ 407   2          }
+ 408   1          else
+ 409   1          {
+ 410   2              OLED_WR_Byte(0xa6,OLED_CMD);
+ 411   2          }
+ 412   1          if(page_two_data[1][1] == 1)//反转
+ 413   1          {
+ 414   2              OLED_WR_Byte(0xa1,OLED_CMD);//段重定向设置  a1    a0
+ 415   2              OLED_WR_Byte(0xC8,OLED_CMD);//-not offset   c8    c0
+ 416   2          }
+ 417   1          else
+ 418   1          {
+ 419   2              OLED_WR_Byte(0xa0,OLED_CMD);//段重定向设置  a1    a0
+ 420   2              OLED_WR_Byte(0xC0,OLED_CMD);//-not offset   c8    c0
+ 421   2          }
+ 422   1          if(page_two_data[1][2] > 0)
+ 423   1          {
+ 424   2              OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 8   
+
+ 425   2              OLED_WR_Byte(page_two_data[1][2],OLED_CMD);
+ 426   2          }
+ 427   1          else
+ 428   1          {
+ 429   2              OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+ 430   2              OLED_WR_Byte(0xff,OLED_CMD);//亮度调满
+ 431   2          }
+ 432   1          if(page_two_data[2][0] == 1)//数据存储
+ 433   1          {
+ 434   2              //
+ 435   2              data_transmit();
+ 436   2              eeprom_erase(0x40);
+ 437   2              eeprom_write(0x00,save_data_A,32);
+ 438   2              eeprom_write(0x20,save_data_B,32);
+ 439   2              page_two_data[2][0] = 0;
+ 440   2          }
+ 441   1          if(page_two_data[2][1] == 1)//恢复出厂
+ 442   1          {
+ 443   2              //
+ 444   2              data_init();
+ 445   2              data_transmit();
+ 446   2              eeprom_erase(0x40);
+ 447   2              eeprom_write(0x00,save_data_A,32);
+ 448   2              eeprom_write(0x20,save_data_B,32);
+ 449   2              page_two_data[2][1] = 0;
+ 450   2          }
+ 451   1      
+ 452   1          switch(page_two_data[6][0])
+ 453   1          {
+ 454   2          case 0://默认5V
+ 455   2              CFG1 = 1;
+ 456   2              CFG2 = 0;
+ 457   2              CFG3 = 0;
+ 458   2              break;
+ 459   2          case 1://9V
+ 460   2              CFG1 = 0;
+ 461   2              CFG2 = 0;
+ 462   2              CFG3 = 0;
+ 463   2              break;
+ 464   2          case 2://12V
+ 465   2              CFG1 = 0;
+ 466   2              CFG2 = 0;
+ 467   2              CFG3 = 1;
+ 468   2              break;
+ 469   2          case 3://15V
+ 470   2              CFG1 = 0;
+ 471   2              CFG2 = 1;
+ 472   2              CFG3 = 1;
+ 473   2              break;
+ 474   2          case 4://20V
+ 475   2              CFG1 = 0;
+ 476   2              CFG2 = 1;
+ 477   2              CFG3 = 0;
+ 478   2              break;
+ 479   2          }
+ 480   1      
+ 481   1          icon_size_flag = page_two_data[7][0];
+ 482   1          row_derection = page_two_data[7][1];//滚动方向
+ 483   1          if(icon_size_flag == 0)
+ 484   1          {
+ 485   2              if(row_derection == 1)
+ 486   2              {
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 9   
+
+ 487   3                  row_speed = 1;
+ 488   3              }
+ 489   2              else
+ 490   2              {
+ 491   3                  row_speed = 6;
+ 492   3              }
+ 493   2          }
+ 494   1          else
+ 495   1          {
+ 496   2              row_speed = 1;
+ 497   2          }
+ 498   1      
+ 499   1      
+ 500   1      
+ 501   1      }
+ 502          
+ 503          void page_one_menu(uint8 x,uint8 y,uint8 flag)
+ 504          {
+ 505   1          OLED_CH16_Char( x,y,1,flag,0);
+ 506   1      }
+ 507          //写一个滚动函数
+ 508          void row_page(int8 flag,uint8 speed)//页码标志，速度
+ 509          {
+ 510   1          int i;
+ 511   1          page_left   = flag - 1;
+ 512   1          page_center = flag;
+ 513   1          page_right  = flag + 1;
+ 514   1          if(page_left < 0)
+ 515   1          {
+ 516   2              page_left = page_max + 0;
+ 517   2          }
+ 518   1          if(page_right >= page_max + 1)
+ 519   1          {
+ 520   2              page_right = 0;
+ 521   2          }
+ 522   1          if(row_flag == -1)
+ 523   1          {
+ 524   2              for(i = 0; i<34; i+=speed) //向右平移34个单位
+ 525   2              {
+ 526   3                  last_hide = last_left - 1;
+ 527   3                  if(last_hide < 0)
+ 528   3                  {
+ 529   4                      last_hide = page_max + 0;
+ 530   4                  }
+ 531   3                  Draw_IMG34x24(-46+i,1, last_hide);
+ 532   3                  Draw_IMG34x24(-14+i,1, last_left);
+ 533   3                  Draw_IMG34x24(20+i,1, last_center);
+ 534   3                  Draw_IMG34x24(54+i,1, last_right);
+ 535   3      
+ 536   3              }
+ 537   2              row_flag = 0;
+ 538   2          }
+ 539   1          else if(row_flag == 1)//向左滚动
+ 540   1          {
+ 541   2              for(i = 0; i>=-33; i-=speed)
+ 542   2              {
+ 543   3                  last_hide = last_right + 1;
+ 544   3                  if(last_hide >= page_max + 1)
+ 545   3                  {
+ 546   4                      last_hide = 0;
+ 547   4                  }
+ 548   3                  Draw_IMG34x24(-14+i,1, last_left);
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 10  
+
+ 549   3                  Draw_IMG34x24(20+i,1, last_center);
+ 550   3                  Draw_IMG34x24(54+i,1, last_right);
+ 551   3                  Draw_IMG34x24(86+i,1, last_hide);
+ 552   3              }
+ 553   2              row_flag = 0;
+ 554   2          }
+ 555   1          Draw_IMG34x24(-14,1, page_left);
+ 556   1          Draw_IMG34x24(20,1, page_center);
+ 557   1          Draw_IMG34x24(54,1, page_right);
+ 558   1          last_left = page_left;
+ 559   1          last_center = page_center;
+ 560   1          last_right = page_right;
+ 561   1      
+ 562   1      }
+ 563          //重构一个平移的函数
+ 564          void new_row_page(int8 flag,uint8 speed,uint8 mode)
+ 565          {
+ 566   1          int i;
+ 567   1          page_left   = flag - 1;
+ 568   1          page_center = flag;
+ 569   1          page_right  = flag + 1;
+ 570   1          if(page_left < 0)
+ 571   1          {
+ 572   2              page_left = page_max + 0;
+ 573   2          }
+ 574   1          if(page_right >= page_max + 1)
+ 575   1          {
+ 576   2              page_right = 0;
+ 577   2          }
+ 578   1          if(mode == 0)//左右横移模式
+ 579   1          {
+ 580   2      
+ 581   2              if(row_flag == -1)
+ 582   2              {
+ 583   3                  for(i = 0; i<42; i+=speed) //向右平移34个单位
+ 584   3                  {
+ 585   4                      last_hide = last_left - 1;
+ 586   4                      if(last_hide < 0)
+ 587   4                      {
+ 588   5                          last_hide = page_max + 0;
+ 589   5                      }
+ 590   4                      Draw_IMG42X32_limit(-68+i,0, last_hide,mode);
+ 591   4                      Draw_IMG42X32_limit(-26+i,0, last_left,mode);
+ 592   4                      Draw_IMG42X32_limit(16+i,0, last_center,mode);
+ 593   4                      Draw_IMG42X32_limit(58+i,0, last_right,mode);
+ 594   4      
+ 595   4                  }
+ 596   3                  row_flag = 0;
+ 597   3              }
+ 598   2              else if(row_flag == 1)//向左滚动
+ 599   2              {
+ 600   3                  for(i = 0; i>=-41; i-=speed)
+ 601   3                  {
+ 602   4                      last_hide = last_right + 1;
+ 603   4                      if(last_hide >= page_max + 1)
+ 604   4                      {
+ 605   5                          last_hide = 0;
+ 606   5                      }
+ 607   4      
+ 608   4                      Draw_IMG42X32_limit(-26+i,0, last_left,mode);
+ 609   4                      Draw_IMG42X32_limit(16+i,0, last_center,mode);
+ 610   4                      Draw_IMG42X32_limit(58+i,0, last_right,mode);
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 11  
+
+ 611   4                      Draw_IMG42X32_limit(100+i,0, last_hide,mode);
+ 612   4                  }
+ 613   3                  row_flag = 0;
+ 614   3              }
+ 615   2              Draw_IMG42X32_limit(-26,0, page_left,mode);
+ 616   2              Draw_IMG42X32_limit(16,0, page_center,mode);
+ 617   2              Draw_IMG42X32_limit(58,0, page_right,mode);
+ 618   2              last_left = page_left;
+ 619   2              last_center = page_center;
+ 620   2              last_right = page_right;
+ 621   2          }
+ 622   1          else if(mode == 1)//上下横移模式
+ 623   1          {
+ 624   2              if(row_flag == -1)
+ 625   2              {
+ 626   3                  for(i = 0; i<4; i+=speed) //向下平移4个单位
+ 627   3                  {
+ 628   4      
+ 629   4                      Draw_IMG42X32_limit(16,i-4, last_left,mode);
+ 630   4                      Draw_IMG42X32_limit(16,i, last_center,mode);
+ 631   4                      //Draw_IMG42X32(16,i+1, last_right);
+ 632   4                      pca_delay_ms(30);
+ 633   4                  }
+ 634   3                  row_flag = 0;
+ 635   3              }
+ 636   2              else if(row_flag == 1)//
+ 637   2              {
+ 638   3                  for(i = 0; i>=-3; i-=speed)
+ 639   3                  {
+ 640   4      
+ 641   4                      //Draw_IMG42X32(16,0, last_left);
+ 642   4                      Draw_IMG42X32_limit(16,i, last_center,mode);
+ 643   4                      Draw_IMG42X32_limit(16,i+4, last_right,mode);
+ 644   4                      pca_delay_ms(30);
+ 645   4                  }
+ 646   3                  row_flag = 0;
+ 647   3              }
+ 648   2              Draw_IMG42X32_limit(16,0, page_center,mode);
+ 649   2              last_left = page_left;
+ 650   2              last_center = page_center;
+ 651   2              last_right = page_right;
+ 652   2          }
+ 653   1      }
+ 654          //用来上下翻转第二页菜单参数名的函数
+ 655          void row_page_two(int8 what_page)//确保此时移动的是第几页的参数
+ 656          {
+ 657   1          uint8  up_ch[12] = {0};
+ 658   1          uint8  center_ch[12] = {0};
+ 659   1          uint8  down_ch[12] = {0};
+ 660   1          int8 i = 0;
+ 661   1          //定义一个参数表示当前的页码
+ 662   1          int8 page_1_num = what_page;
+ 663   1          page_2_up[what_page] = page_2_flag[what_page] - 1;
+ 664   1          page_2_center[what_page] = page_2_flag[what_page];
+ 665   1          page_2_down[what_page] = page_2_flag[what_page] + 1;
+ 666   1          if(page_2_up[what_page] < 0)
+ 667   1          {
+ 668   2              page_2_up[what_page] = page_two_num_max[what_page] - 1;
+ 669   2          }
+ 670   1      
+ 671   1          if(page_2_down[what_page] >page_two_num_max[what_page] - 1)
+ 672   1          {
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 12  
+
+ 673   2              page_2_down[what_page] = 0;
+ 674   2          }
+ 675   1          //OLED_CH16_Char(0,-1,2,what_page,page_2_up[what_page]);
+ 676   1          OLED_CH16_Char(0,1,2,what_page,page_2_center[what_page]);
+ 677   1          //OLED_CH16_Char(0,3,2,what_page,page_2_down[what_page]);
+ 678   1          //要修改数值显示内容就得改这个，//
+ 679   1      
+ 680   1          switch(what_page)//一级菜单编号
+ 681   1          {
+ 682   2          case 0:
+ 683   2              OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 684   2              break;
+ 685   2          case 1://第一个页面：屏幕设置
+ 686   2              switch(page_2_center[what_page])//二级菜单编号
+ 687   2              {
+ 688   3              case 0:
+ 689   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 690   3                  {
+ 691   4                  case 0:
+ 692   4                      OLED_ShowString(80,1,"Blac",16);
+ 693   4                      break;
+ 694   4                  case 1:
+ 695   4                      OLED_ShowString(80,1,"Whit",16);
+ 696   4                      break;
+ 697   4                  }
+ 698   3                  break;
+ 699   3              case 1:
+ 700   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 701   3                  {
+ 702   4                  case 0:
+ 703   4                      OLED_ShowString(80,1,"  UP",16);
+ 704   4                      break;
+ 705   4                  case 1:
+ 706   4                      OLED_ShowString(80,1,"DOWN",16);
+ 707   4                      break;
+ 708   4                  }
+ 709   3                  break;
+ 710   3              case 2:
+ 711   3                  OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 712   3                  break;
+ 713   3              }
+ 714   2              break;
+ 715   2          case 2:
+ 716   2              switch(page_2_center[what_page])//二级菜单编号
+ 717   2              {
+ 718   3              case 0:
+ 719   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 720   3                  {
+ 721   4                  case 0:
+ 722   4                      OLED_ShowString(80,1,"  No",16);
+ 723   4                      break;
+ 724   4                  case 1:
+ 725   4                      OLED_ShowString(80,1," Yes",16);
+ 726   4                      break;
+ 727   4                  }
+ 728   3                  break;
+ 729   3              case 1:
+ 730   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 731   3                  {
+ 732   4                  case 0:
+ 733   4                      OLED_ShowString(80,1,"  No",16);
+ 734   4                      break;
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 13  
+
+ 735   4                  case 1:
+ 736   4                      OLED_ShowString(80,1," Yes",16);
+ 737   4                      break;
+ 738   4                  }
+ 739   3                  break;
+ 740   3              case 2:
+ 741   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 742   3                  {
+ 743   4                  case 0:
+ 744   4                      OLED_ShowString(80,1," OFF",16);
+ 745   4                      break;
+ 746   4                  case 1:
+ 747   4                      OLED_ShowString(80,1,"  ON",16);
+ 748   4                      break;
+ 749   4                  }
+ 750   3                  break;
+ 751   3              case 3:
+ 752   3                  OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 753   3                  break;
+ 754   3              }
+ 755   2              break;
+ 756   2          case 3:
+ 757   2              switch(page_2_center[what_page])//二级菜单编号
+ 758   2              {
+ 759   3              case 0:
+ 760   3                  OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 761   3                  break;
+ 762   3              case 1:
+ 763   3                  OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 764   3                  break;
+ 765   3              case 2:
+ 766   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 767   3                  {
+ 768   4                  case 0:
+ 769   4                      OLED_ShowString(80,1," OFF",16);
+ 770   4                      break;
+ 771   4                  case 1:
+ 772   4                      OLED_ShowString(80,1,"  ON",16);
+ 773   4                      break;
+ 774   4                  }
+ 775   3                  break;
+ 776   3              case 3:
+ 777   3                  OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],3,16);
+ 778   3                  OLED_ShowString(104,1,"M",16);
+ 779   3                  break;
+ 780   3              case 4:
+ 781   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 782   3                  {
+ 783   4                  case 0:
+ 784   4                      OLED_ShowString(80,1," OFF",16);
+ 785   4                      break;
+ 786   4                  case 1:
+ 787   4                      OLED_ShowString(80,1,"  ON",16);
+ 788   4                      break;
+ 789   4                  }
+ 790   3                  break;
+ 791   3      
+ 792   3              }
+ 793   2              break;
+ 794   2          case 4:
+ 795   2              OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 796   2              break;
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 14  
+
+ 797   2          case 5:
+ 798   2              OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
+ 799   2              break;
+ 800   2          case 6:
+ 801   2              switch(page_2_center[what_page])//二级菜单编号
+ 802   2              {
+ 803   3              case 0:
+ 804   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 805   3                  {
+ 806   4                  case 0:
+ 807   4                      OLED_ShowString(80,1," +5V",16);
+ 808   4                      break;
+ 809   4                  case 1:
+ 810   4                      OLED_ShowString(80,1," +9V",16);
+ 811   4                      break;
+ 812   4                  case 2:
+ 813   4                      OLED_ShowString(80,1,"+12V",16);
+ 814   4                      break;
+ 815   4                  case 3:
+ 816   4                      OLED_ShowString(80,1,"+15V",16);
+ 817   4                      break;
+ 818   4                  case 4:
+ 819   4                      OLED_ShowString(80,1,"+20V",16);
+ 820   4                      break;
+ 821   4                  }
+ 822   3                  break;
+ 823   3              case 1:
+ 824   3                  OLED_ShowString(80,1,"+",16);
+ 825   3                  OLED_ShowNum(88,1,page_two_data[what_page][page_2_center[what_page]],2,16);
+ 826   3                  OLED_ShowString(104,1,"V",16);
+ 827   3                  break;
+ 828   3              case 2:
+ 829   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 830   3                  {
+ 831   4                  case 0:
+ 832   4                      OLED_ShowString(80,1," OFF",16);
+ 833   4                      break;
+ 834   4                  case 1:
+ 835   4                      OLED_ShowString(80,1,"  ON",16);
+ 836   4                      break;
+ 837   4                  }
+ 838   3                  break;
+ 839   3              }
+ 840   2              break;
+ 841   2          case 7:
+ 842   2              switch(page_2_center[what_page])//二级菜单编号
+ 843   2              {
+ 844   3              case 0:
+ 845   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 846   3                  {
+ 847   4                  case 0:
+ 848   4                      OLED_ShowString(80,1,"Larg",16);
+ 849   4                      break;
+ 850   4                  case 1:
+ 851   4                      OLED_ShowString(80,1,"Smal",16);
+ 852   4                      break;
+ 853   4      
+ 854   4                  }
+ 855   3                  break;
+ 856   3              case 1:
+ 857   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
+ 858   3                  {
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 15  
+
+ 859   4                  case 0:
+ 860   4                      OLED_ShowString(80,1," L&R",16);
+ 861   4                      break;
+ 862   4                  case 1:
+ 863   4                      OLED_ShowString(80,1," U&D",16);
+ 864   4                      break;
+ 865   4      
+ 866   4                  }
+ 867   3                  break;
+ 868   3              }
+ 869   2              break;
+ 870   2      
+ 871   2      
+ 872   2          }
+ 873   1          //
+ 874   1      }
+ 875          
+ 876          
+ 877          
+ 878          void Function_execute(void)//实现功能
+ 879          {
+ 880   1          switch(page_flag)
+ 881   1          {
+ 882   2          case 0://参数整定部分
+ 883   2              break;
+ 884   2          case 1://
+ 885   2              if(page_two_data[1][0] == 1)//反色显示部分
+ 886   2              {
+ 887   3                  OLED_WR_Byte(0xa7,OLED_CMD);
+ 888   3              }
+ 889   2              else
+ 890   2              {
+ 891   3                  OLED_WR_Byte(0xa6,OLED_CMD);
+ 892   3              }
+ 893   2              if(page_two_data[1][1] == 1)//反转
+ 894   2              {
+ 895   3                  OLED_WR_Byte(0xa1,OLED_CMD);//段重定向设置  a1    a0
+ 896   3                  OLED_WR_Byte(0xC8,OLED_CMD);//-not offset   c8    c0
+ 897   3              }
+ 898   2              else
+ 899   2              {
+ 900   3                  OLED_WR_Byte(0xa0,OLED_CMD);//段重定向设置  a1    a0
+ 901   3                  OLED_WR_Byte(0xC0,OLED_CMD);//-not offset   c8    c0
+ 902   3              }
+ 903   2              if(page_two_data[1][2] > 0)
+ 904   2              {
+ 905   3                  OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+ 906   3                  OLED_WR_Byte(page_two_data[1][2],OLED_CMD);
+ 907   3              }
+ 908   2              else
+ 909   2              {
+ 910   3                  OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
+ 911   3                  OLED_WR_Byte(0xff,OLED_CMD);//亮度调满
+ 912   3              }
+ 913   2              break;
+ 914   2          case 2://基础设置部分
+ 915   2              if(page_two_data[2][0] == 1)//数据存储
+ 916   2              {
+ 917   3                  //
+ 918   3                  data_transmit();
+ 919   3                  eeprom_erase(0x40);
+ 920   3                  eeprom_write(0x00,save_data_A,32);
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 16  
+
+ 921   3                  eeprom_write(0x20,save_data_B,32);
+ 922   3                  page_two_data[2][0] = 0;
+ 923   3              }
+ 924   2              if(page_two_data[2][1] == 1)//恢复出厂
+ 925   2              {
+ 926   3                  //
+ 927   3                  data_init();
+ 928   3                  data_transmit();
+ 929   3                  eeprom_erase(0x40);
+ 930   3                  eeprom_write(0x00,save_data_A,32);
+ 931   3                  eeprom_write(0x20,save_data_B,32);
+ 932   3                  page_two_data[2][1] = 0;
+ 933   3              }
+ 934   2      
+ 935   2              break;
+ 936   2          case 3://休眠时间设定
+ 937   2              break;
+ 938   2          case 4:
+ 939   2              break;
+ 940   2          case 5:
+ 941   2              break;
+ 942   2          case 6://协议设置
+ 943   2              switch(page_two_data[6][0])
+ 944   2              {
+ 945   3              case 0://默认5V
+ 946   3                  CFG1 = 1;
+ 947   3                  CFG2 = 0;
+ 948   3                  CFG3 = 0;
+ 949   3                  break;
+ 950   3              case 1://9V
+ 951   3                  CFG1 = 0;
+ 952   3                  CFG2 = 0;
+ 953   3                  CFG3 = 0;
+ 954   3                  break;
+ 955   3              case 2://12V
+ 956   3                  CFG1 = 0;
+ 957   3                  CFG2 = 0;
+ 958   3                  CFG3 = 1;
+ 959   3                  break;
+ 960   3              case 3://15V
+ 961   3                  CFG1 = 0;
+ 962   3                  CFG2 = 1;
+ 963   3                  CFG3 = 1;
+ 964   3                  break;
+ 965   3              case 4://20V
+ 966   3                  CFG1 = 0;
+ 967   3                  CFG2 = 1;
+ 968   3                  CFG3 = 0;
+ 969   3                  break;
+ 970   3              }
+ 971   2              break;
+ 972   2          case 7://UI修改
+ 973   2              icon_size_flag = page_two_data[7][0];
+ 974   2              row_derection = page_two_data[7][1];//滚动方向
+ 975   2              if(icon_size_flag == 0)
+ 976   2              {
+ 977   3                  if(row_derection == 1)
+ 978   3                  {
+ 979   4                      row_speed = 1;
+ 980   4                  }
+ 981   3                  else
+ 982   3                  {
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 17  
+
+ 983   4                      row_speed = 4;
+ 984   4                  }
+ 985   3              }
+ 986   2              else
+ 987   2              {
+ 988   3                  row_speed = 1;
+ 989   3              }
+ 990   2      
+ 991   2              break;
+ 992   2      
+ 993   2          }
+ 994   1      }
+ 995          /**/
+ 996          void key_press(void)
+ 997          {
+ 998   1          //------------------------------------------------------------//
+ 999   1          if(enter_flag == 1)
+1000   1          {
+1001   2      
+1002   2              if(menu_flag == 0)//在主界面时按下mode键
+1003   2              {
+1004   3                  menu_flag = 1;
+1005   3              }
+1006   2              else if(menu_flag == 1)//在一级菜单下按下mode键
+1007   2              {
+1008   3                  //功能
+1009   3                  menu_flag = 2;
+1010   3              }
+1011   2              else if(menu_flag == 2)//在二级菜单下按下mode键
+1012   2              {
+1013   3                  if(select_flag == 0)
+1014   3                  {
+1015   4                      select_flag = 1;//进入编辑界面
+1016   4                  }
+1017   3                  else
+1018   3                  {
+1019   4      
+1020   4                      Function_execute();
+1021   4                      select_flag = 0;
+1022   4                  }
+1023   3      
+1024   3      
+1025   3      
+1026   3              }
+1027   2              OLED_Clear();
+1028   2              enter_flag = 0;
+1029   2      
+1030   2          }
+1031   1          //------------------------------------------------------------//
+1032   1          if(quit_flag == 1)
+1033   1          {
+1034   2      
+1035   2              if(menu_flag == 0)
+1036   2              {
+1037   3                  Strong_temp_flag = !Strong_temp_flag;//开启一键加强模式
+1038   3              }
+1039   2              else if(menu_flag == 1)
+1040   2              {
+1041   3                  menu_flag = 0;
+1042   3              }
+1043   2              else if(menu_flag == 2)
+1044   2              {
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 18  
+
+1045   3                  if(select_flag == 0)
+1046   3                  {
+1047   4                      menu_flag = 1;
+1048   4                  }
+1049   3              }
+1050   2      
+1051   2              OLED_Clear();
+1052   2              quit_flag = 0;
+1053   2      
+1054   2          }
+1055   1          //------------------------------------------------------------//
+1056   1      
+1057   1          if(up_short_flag == 1)
+1058   1          {
+1059   2      
+1060   2              //function
+1061   2              if(menu_flag == 0)//在主界面时按下up键
+1062   2              {
+1063   3                  Temp_Set -=TEMP_STEEP;//五度步进
+1064   3                  if(Temp_Set >= IRON_TEMP_SET_MAX)
+1065   3                  {
+1066   4                      Temp_Set = IRON_TEMP_SET_MAX;
+1067   4      
+1068   4                  }
+1069   3                  else if(Temp_Set <= IRON_TEMP_SET_MIN)
+1070   3                  {
+1071   4                      Temp_Set = IRON_TEMP_SET_MIN;
+1072   4                  }
+1073   3              }
+1074   2              else if(menu_flag == 1)//在一级菜单时按下up键
+1075   2              {
+1076   3                  page_flag -= 1;
+1077   3                  row_flag = -1;
+1078   3              }
+1079   2              else if(menu_flag == 2)
+1080   2              {
+1081   3      
+1082   3                  if(select_flag == 1)
+1083   3                  {
+1084   4                      page_two_data[page_flag][page_2_flag[page_flag]]--;
+1085   4                      if(page_two_data[page_flag][page_2_flag[page_flag]] < page_two_data_min[page_flag][page_2_
+             -flag[page_flag]])
+1086   4                      {
+1087   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_max[page_flag][page_2
+             -_flag[page_flag]];
+1088   5                      }
+1089   4                      else if(page_two_data[page_flag][page_2_flag[page_flag]] > page_two_data_max[page_flag][pa
+             -ge_2_flag[page_flag]])
+1090   4                      {
+1091   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_min[page_flag][page_2
+             -_flag[page_flag]];
+1092   5                      }
+1093   4                  }
+1094   3                  else
+1095   3                  {
+1096   4                      page_2_flag[page_flag] -= 1;
+1097   4                      if(page_2_flag[page_flag] < 0)
+1098   4                      {
+1099   5                          page_2_flag[page_flag] = page_two_num_max[page_flag] - 1;
+1100   5                      }
+1101   4                  }
+1102   3              }
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 19  
+
+1103   2              //
+1104   2              up_short_flag = 0;
+1105   2      
+1106   2          }
+1107   1          if(up_long_flag == 1)
+1108   1          {
+1109   2              //BEEP_flag = 1;
+1110   2              //function
+1111   2              if(menu_flag == 0)//在主界面时按下up键
+1112   2              {
+1113   3                  Temp_Set -=TEMP_STEEP;//五度步进
+1114   3                  if(Temp_Set >= IRON_TEMP_SET_MAX)
+1115   3                  {
+1116   4                      Temp_Set = IRON_TEMP_SET_MAX;
+1117   4      
+1118   4                  }
+1119   3                  else if(Temp_Set <= IRON_TEMP_SET_MIN)
+1120   3                  {
+1121   4                      Temp_Set = IRON_TEMP_SET_MIN;
+1122   4                  }
+1123   3              }
+1124   2              else if(menu_flag == 1)//在一级菜单时按下up键
+1125   2              {
+1126   3                  page_flag -= 1;
+1127   3                  row_flag = -1;
+1128   3              }
+1129   2              else if(menu_flag == 2)
+1130   2              {
+1131   3      
+1132   3                  if(select_flag == 1)
+1133   3                  {
+1134   4                      page_two_data[page_flag][page_2_flag[page_flag]]--;
+1135   4                      if(page_two_data[page_flag][page_2_flag[page_flag]] < page_two_data_min[page_flag][page_2_
+             -flag[page_flag]])
+1136   4                      {
+1137   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_max[page_flag][page_2
+             -_flag[page_flag]];
+1138   5                      }
+1139   4                      else if(page_two_data[page_flag][page_2_flag[page_flag]] > page_two_data_max[page_flag][pa
+             -ge_2_flag[page_flag]])
+1140   4                      {
+1141   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_min[page_flag][page_2
+             -_flag[page_flag]];
+1142   5                      }
+1143   4                  }
+1144   3                  else
+1145   3                  {
+1146   4                      page_2_flag[page_flag] -= 1;
+1147   4                      if(page_2_flag[page_flag] < 0)
+1148   4                      {
+1149   5                          page_2_flag[page_flag] = page_two_num_max[page_flag] - 1;
+1150   5                      }
+1151   4                  }
+1152   3              }
+1153   2              //
+1154   2              //up_long_flag = 0;
+1155   2          }
+1156   1      
+1157   1          //------------------------------------------------------------//
+1158   1          if(down_short_flag == 1)
+1159   1          {
+1160   2      
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 20  
+
+1161   2              //function
+1162   2              if(menu_flag == 0)//在主界面时按下up键
+1163   2              {
+1164   3                  Temp_Set +=TEMP_STEEP;//五度步进
+1165   3                  if(Temp_Set >= IRON_TEMP_SET_MAX)
+1166   3                  {
+1167   4                      Temp_Set = IRON_TEMP_SET_MAX;
+1168   4      
+1169   4                  }
+1170   3                  else if(Temp_Set <= IRON_TEMP_SET_MIN)
+1171   3                  {
+1172   4                      Temp_Set = IRON_TEMP_SET_MIN;
+1173   4                  }
+1174   3              }
+1175   2              else if(menu_flag == 1)//在一级菜单时按下down键
+1176   2              {
+1177   3                  page_flag += 1;
+1178   3                  row_flag = 1;
+1179   3              }
+1180   2              else if(menu_flag == 2)
+1181   2              {
+1182   3      
+1183   3      
+1184   3                  if(select_flag == 1)
+1185   3                  {
+1186   4                      page_two_data[page_flag][page_2_flag[page_flag]]++;
+1187   4                      if(page_two_data[page_flag][page_2_flag[page_flag]] < page_two_data_min[page_flag][page_2_
+             -flag[page_flag]])
+1188   4                      {
+1189   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_max[page_flag][page_2
+             -_flag[page_flag]];
+1190   5                      }
+1191   4                      else if(page_two_data[page_flag][page_2_flag[page_flag]] > page_two_data_max[page_flag][pa
+             -ge_2_flag[page_flag]])
+1192   4                      {
+1193   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_min[page_flag][page_2
+             -_flag[page_flag]];
+1194   5                      }
+1195   4                  }
+1196   3                  else
+1197   3                  {
+1198   4                      page_2_flag[page_flag] += 1;
+1199   4                      if(page_2_flag[page_flag] >page_two_num_max[page_flag] - 1)
+1200   4                      {
+1201   5                          page_2_flag[page_flag] = 0;
+1202   5                      }
+1203   4                  }
+1204   3              }
+1205   2              //
+1206   2              down_short_flag = 0;
+1207   2      
+1208   2          }
+1209   1          if(down_long_flag == 1)
+1210   1          {
+1211   2              //function
+1212   2              if(menu_flag == 0)//在主界面时按下up键
+1213   2              {
+1214   3                  Temp_Set +=TEMP_STEEP;//五度步进
+1215   3                  if(Temp_Set >= IRON_TEMP_SET_MAX)
+1216   3                  {
+1217   4                      Temp_Set = IRON_TEMP_SET_MAX;
+1218   4      
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 21  
+
+1219   4                  }
+1220   3                  else if(Temp_Set <= IRON_TEMP_SET_MIN)
+1221   3                  {
+1222   4                      Temp_Set = IRON_TEMP_SET_MIN;
+1223   4                  }
+1224   3              }
+1225   2              else if(menu_flag == 1)//在一级菜单时按下down键
+1226   2              {
+1227   3                  page_flag += 1;
+1228   3                  row_flag = 1;
+1229   3              }
+1230   2              else if(menu_flag == 2)
+1231   2              {
+1232   3      
+1233   3      
+1234   3                  if(select_flag == 1)
+1235   3                  {
+1236   4                      page_two_data[page_flag][page_2_flag[page_flag]]++;
+1237   4                      if(page_two_data[page_flag][page_2_flag[page_flag]] < page_two_data_min[page_flag][page_2_
+             -flag[page_flag]])
+1238   4                      {
+1239   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_max[page_flag][page_2
+             -_flag[page_flag]];
+1240   5                      }
+1241   4                      else if(page_two_data[page_flag][page_2_flag[page_flag]] > page_two_data_max[page_flag][pa
+             -ge_2_flag[page_flag]])
+1242   4                      {
+1243   5                          page_two_data[page_flag][page_2_flag[page_flag]] = page_two_data_min[page_flag][page_2
+             -_flag[page_flag]];
+1244   5                      }
+1245   4                  }
+1246   3                  else
+1247   3                  {
+1248   4                      page_2_flag[page_flag] += 1;
+1249   4                      if(page_2_flag[page_flag] >page_two_num_max[page_flag] - 1)
+1250   4                      {
+1251   5                          page_2_flag[page_flag] = 0;
+1252   5                      }
+1253   4                  }
+1254   3              }
+1255   2              //
+1256   2              //down_long_flag = 0;
+1257   2          }
+1258   1          //------------------------------------------------------------//
+1259   1      
+1260   1          //------------------------------------------------------------//
+1261   1          if(page_flag < page_min)
+1262   1          {
+1263   2              page_flag = page_max;
+1264   2          }
+1265   1          else if(page_flag > page_max)
+1266   1          {
+1267   2              page_flag = page_min;
+1268   2          }
+1269   1      
+1270   1      }
+1271          /*定义一个主菜单函数*/
+1272          void top_menu(uint16 set_temp,uint16 iron_temp, uint8 sys_temp, uint8 vin, uint8 pwm_duty)
+1273          {
+1274   1          pwm_out_get();//获取pwm输出值
+1275   1          BEEP_handle();
+1276   1          OLED_OFF_handle();
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 22  
+
+1277   1          if(menu_flag == 0)
+1278   1          {
+1279   2              //显示输入电压
+1280   2              OLED_ShowString(100,0,"V:",8);
+1281   2              OLED_ShowNum(110,0,vin,2,12);
+1282   2              OLED_ShowString(122,0,"v",8);
+1283   2              //显示系统温度
+1284   2              //
+1285   2              if((vin < LOW_BATTERY_VOLTAGE)&&(LOW_BATTERY_ON_FLAG == 1))//触发低电量保护
+1286   2              {
+1287   3                  low_battery_flag = 1;
+1288   3                  pwm_flag = 0;
+1289   3              }
+1290   2              else
+1291   2              {
+1292   3                  low_battery_flag = 0;
+1293   3              }
+1294   2              OLED_ShowString(100,1,"T:",8);
+1295   2              OLED_ShowNum(110,1,sys_temp,2,12);
+1296   2              OLED_ShowString(122,1,"^",8);
+1297   2              //显示设置温度
+1298   2              show_set_temp(0,2,set_temp);
+1299   2              //显示烙铁温度
+1300   2              show_temp(24,iron_temp);
+1301   2              //显示PWM占空比
+1302   2              show_IMG56x8(72, 3,pwm_duty);
+1303   2              if((SLEEP_INIT_FLAG == 0)&&(Strong_temp_flag == 0))
+1304   2              {
+1305   3                  show_IMG16x16(4,0,0);//加热模式
+1306   3              }
+1307   2              //
+1308   2          }
+1309   1          else
+1310   1          {
+1311   2              //
+1312   2              pwm_flag = 0;
+1313   2          }
+1314   1      }
+1315          
+1316          void show_menu(void)
+1317          {
+1318   1          if(menu_flag == 0)
+1319   1          {
+1320   2      
+1321   2              STRONG_TEMP_handle();//强温模式判断
+1322   2          }
+1323   1          else if(menu_flag == 1)
+1324   1          {
+1325   2              //显示一级菜单
+1326   2              //先执行一个全局赋值函数，再执行后面的函数
+1327   2              if(icon_size_flag == 1)
+1328   2              {
+1329   3                  row_page(page_flag,row_speed*10);
+1330   3              }
+1331   2              else
+1332   2              {
+1333   3                  new_row_page(page_flag,row_speed,row_derection);
+1334   3              }
+1335   2              page_one_menu(64,1,page_flag);
+1336   2          }
+1337   1          else if(menu_flag == 2)//
+1338   1          {
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 23  
+
+1339   2              if(page_flag == 8)
+1340   2              {
+1341   3                  OLED_ShowString(0,0,INFO_VERSION,12);
+1342   3                  OLED_ShowString(0,1,INFO_HARDWARE,12);
+1343   3                  OLED_ShowString(0,2,INFO_SOFTWARE,12);
+1344   3                  OLED_ShowString(0,3,INFO_WEBSITE,12);
+1345   3              }
+1346   2              else
+1347   2              {
+1348   3                  //显示二级菜单
+1349   3                  OLED_P8x16Str(64,1,">");
+1350   3                  OLED_P8x16Str(120,1,"<");
+1351   3                  row_page_two(page_flag);
+1352   3              }
+1353   2      
+1354   2          }
+1355   1      
+1356   1      }
+1357          
+1358          
+1359          
+1360          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   5671    ----
+   CONSTANT SIZE    =   1174    ----
+   XDATA SIZE       =    233      55
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     64    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

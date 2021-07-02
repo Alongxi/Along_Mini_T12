@@ -1,0 +1,135 @@
+C51 COMPILER V9.59.0.0   USER_LIB_IIC                                                      07/02/2021 17:17:08 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_LIB_IIC
+OBJECT MODULE PLACED IN .\Out_File\user_lib_iic.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\User_lib\user_lib_iic.c LARGE OPTIMIZE(9,SPEED) BRO
+                    -WSE INCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;
+                    -..\USER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\user_
+                    -lib_iic.lst) TABS(2) OBJECT(.\Out_File\user_lib_iic.obj)
+
+line level    source
+
+   1          #include "headfile.h"
+   2          #include "user_lib_iic.h"
+   3          
+   4          sbit USER_SDA = P1^4;
+   5          sbit USER_SCL = P1^5;
+   6          bit user_iic_busy;
+   7          
+   8          #define I2C_S0  0x10
+   9          #define I2C_S1  0x20
+  10          #define EAXFR   0x80
+  11          void I2C_Isr() interrupt 24
+  12          {
+  13   1          char store;
+  14   1      
+  15   1          store = P_SW2;
+  16   1          P_SW2 |= 0x80;
+  17   1          if (I2CMSST & 0x40)
+  18   1          {
+  19   2              I2CMSST &= ~0x40;                       //清中断标志
+  20   2              user_iic_busy = 0;
+  21   2          }
+  22   1          P_SW2 = store;
+  23   1      }
+  24          void user_iic_delay()
+  25          {
+  26   1          int i;
+  27   1      
+  28   1          for (i=0; i<3000; i++)
+  29   1          {
+  30   2              _nop_();
+  31   2              _nop_();
+  32   2              _nop_();
+  33   2              _nop_();
+  34   2          }
+  35   1      }
+  36          void user_iic_Wait()
+  37          {
+  38   1          while (!(I2CMSST & 0x40));
+  39   1          I2CMSST &= ~0x40;
+  40   1      }
+  41          void user_iic_Start()
+  42          {
+  43   1          I2CMSCR = 0x01;                             //发送START命令
+  44   1          user_iic_Wait();
+  45   1      }
+  46          void user_iic_SendData(char dat)
+  47          {
+  48   1          I2CTXD = dat;                               //写数据到数据缓冲区
+  49   1          I2CMSCR = 0x02;                             //发送SEND命令
+  50   1          user_iic_Wait();
+  51   1      }
+  52          void user_iic_RecvACK()
+C51 COMPILER V9.59.0.0   USER_LIB_IIC                                                      07/02/2021 17:17:08 PAGE 2   
+
+  53          {
+  54   1          I2CMSCR = 0x03;                             //发送读ACK命令
+  55   1          user_iic_Wait();
+  56   1      }
+  57          char user_iic_RecvData()
+  58          {
+  59   1          I2CMSCR = 0x04;                             //发送RECV命令
+  60   1          user_iic_Wait();
+  61   1          return I2CRXD;
+  62   1      }
+  63          void suer_iic_SendACK()
+  64          {
+  65   1          I2CMSST = 0x00;                             //设置ACK信号
+  66   1          I2CMSCR = 0x05;                             //发送ACK命令
+  67   1          user_iic_Wait();
+  68   1      }
+  69          
+  70          void user_iic_SendNAK()
+  71          {
+  72   1          I2CMSST = 0x01;                             //设置NAK信号
+  73   1          I2CMSCR = 0x05;                             //发送ACK命令
+  74   1          user_iic_Wait();
+  75   1      }
+  76          void user_iic_Stop()
+  77          {
+  78   1          I2CMSCR = 0x06;                             //发送STOP命令
+  79   1          user_iic_Wait();
+  80   1      }
+  81          void user_iic_init()
+  82          {
+  83   1        
+  84   1        pca_delay_ms(100);
+  85   1        I2CCFG|=0x40;//使能I2C功能
+  86   1        I2CCFG|=0x20;//使能I2C主模式
+  87   1        I2CCFG&=0xc0;
+  88   1        I2CCFG|=0x08;//I2C 频率400KHZ
+  89   1        I2CMSST = 0x00; //清除I2C总线忙碌标志
+  90   1          
+  91   1      }
+  92          
+  93          void user_iic_write_reg(uint8 dev_add, uint8 reg, uint8 dat)//设备地址，寄存器地址，发送数据
+  94          {
+  95   1          P_SW2 = 0x80;
+  96   1          user_iic_Start();                                    //发送起始命令
+  97   1          user_iic_SendData(dev_add);                             //发送设备地址+写命令
+  98   1          user_iic_RecvACK();
+  99   1          user_iic_SendData(reg);                             //发送存储地址高字节
+ 100   1          user_iic_RecvACK();
+ 101   1          user_iic_SendData(dat);                             //发送存储地址低字节
+ 102   1          user_iic_RecvACK();
+ 103   1          user_iic_Stop();
+ 104   1          P_SW2 = 0x00;//关闭访问扩展SFR 
+ 105   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    221    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+C51 COMPILER V9.59.0.0   USER_LIB_IIC                                                      07/02/2021 17:17:08 PAGE 3   
+
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

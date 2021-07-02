@@ -1,0 +1,93 @@
+C51 COMPILER V9.59.0.0   USER_EEPROM                                                       07/02/2021 17:17:07 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_EEPROM
+OBJECT MODULE PLACED IN .\Out_File\user_eeprom.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\User\user_eeprom.c LARGE OPTIMIZE(9,SPEED) BROWSE I
+                    -NCDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\US
+                    -ER\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\user_eepro
+                    -m.lst) TABS(2) OBJECT(.\Out_File\user_eeprom.obj)
+
+line level    source
+
+   1          /*
+   2          ------------------------------------------------------------
+   3          官方网址：www.alongxii.xyz
+   4          软件作者：Along
+   5          QQ：1259306443
+   6          邮箱：alongxii@outlook.com/1259306443@qq.com
+   7          硬件作者：LI JIAN
+   8          QQ：1557731308
+   9          邮箱：jian19990317@qq.com
+  10          源码底层采用逐飞科技开源库，在此基础上进行二次开发，代码全部开源至Github。
+  11          商用前请联系作者Along进行相关咨询。
+  12          ------------------------------------------------------------
+  13          2021.7.2
+  14          源码最后更新至V1.3.1版本
+  15          功能包括：
+  16          1.参数整定
+  17          2.屏幕设置
+  18          3.基础设置
+  19          4.休眠时间设置
+  20          5.温度阈值设置
+  21          6.阻焊校准设置
+  22          7.电源协议管理设置
+  23          8.菜单UI设置
+  24          具体设置使用方法在www.alongxii.xyz中有详细介绍。
+  25          后续网址可能会更替为www.alongxii.com/www.alongxii.cn。
+  26          ------------------------------------------------------------
+  27          源码相关文件介绍：
+  28          *user_gpio.h:引脚映射的头文件，可根据自己电路的布局修改引脚映射，除ADC接口需采用P1口以外，
+  29          IIC、SPI接口均采用模拟接口，理论上可任意映射。
+  30          main.c:此文件中主要提供软件初始化配置，及菜单等功能程序调用。
+  31          user_menu.c:此文件用于菜单UI使用。
+  32          user_adc.c:此文件用于ADC信号采集，电压值转换、温度转换。
+  33          烙铁温度读取采用分段一次函数，依次对每个100度分段的adc值进行运算得到对应温度值。
+  34          电压采集使用电阻分压。
+  35          user_pid.c:此文件采用位置式PID进行控温，如有更先进控制方案，可在此文件中修改控制函数。
+  36          user_button.c:此文件提供相关按键中断函数与操作逻辑函数，功能调用方式。
+  37          ------------------------------------------------------------
+  38          */
+  39          #include "headfile.h"
+  40          #include "user_eeprom.h"
+  41          
+  42          
+  43          void eeprom_read(uint16 addr, uint8 *buf, uint8 len)
+  44          {
+  45   1          iap_init();//eeprom使能
+  46   1          iap_read_bytes(addr,buf,len);
+  47   1          iap_idle();//eeprom失能
+  48   1      }
+  49          void eeprom_write(uint16 addr, uint8 *buf, uint8 len)
+  50          {
+  51   1      
+  52   1      
+C51 COMPILER V9.59.0.0   USER_EEPROM                                                       07/02/2021 17:17:07 PAGE 2   
+
+  53   1          iap_init();//eeprom使能
+  54   1          
+  55   1          iap_write_bytes(addr,buf,len);
+  56   1          iap_idle();//eeprom失能
+  57   1      
+  58   1      
+  59   1      }
+  60          void eeprom_erase(uint16 addr)
+  61          {
+  62   1          iap_init();//eeprom使能
+  63   1          iap_erase_page(addr);
+  64   1          iap_idle();//eeprom失能
+  65   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    107    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      14
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

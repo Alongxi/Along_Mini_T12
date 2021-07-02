@@ -1,0 +1,213 @@
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BOARD
+OBJECT MODULE PLACED IN .\Out_File\board.obj
+COMPILER INVOKED BY: D:\APPDATA\Keil\C51\BIN\C51.EXE ..\..\Libraries\libraries\board.c LARGE OPTIMIZE(9,SPEED) BROWSE IN
+                    -CDIR(..\..\Libraries\libraries;..\..\Libraries\seekfree_libraries;..\..\Libraries\seekfree_peripheral;..\USER\inc;..\USE
+                    -R\src;..\..\Libraries\GUI;..\..\Libraries\User;..\..\Libraries\User_lib) DEBUG OBJECTEXTEND PRINT(.\Out_File\board.lst) 
+                    -TABS(2) OBJECT(.\Out_File\board.obj)
+
+line level    source
+
+   1          /*********************************************************************************************************
+             -************
+   2           * COPYRIGHT NOTICE
+   3           * Copyright (c) 2020,逐飞科技
+   4           * All rights reserved.
+   5           * 技术讨论QQ群：一群：179029047(已满)  二群：244861897(已满)  三群：824575535
+   6           *
+   7           * 以下所有内容版权均属逐飞科技所有，未经允许不得用于商业用途，
+   8           * 欢迎各位使用并传播本程序，修改内容时必须保留逐飞科技的版权声明。
+   9           *
+  10           * @file          board
+  11           * @company       成都逐飞科技有限公司
+  12           * @author        逐飞科技(QQ790875685)
+  13           * @version       查看doc内version文件 版本说明
+  14           * @Software    MDK5.27
+  15           * @Target core   STC8G8K64S4
+  16           * @Taobao      https://seekfree.taobao.com/
+  17           * @date          2020-4-14
+  18           *********************************************************************************************************
+             -***********/
+  19           
+  20           
+  21          #include "board.h"
+  22          #include "zf_pca_delay.h"
+  23          #include "zf_uart.h"
+  24          #include "zf_tim.h"
+  25          
+  26          //22.11MHz的IRC参数寄存器 0xFB
+  27          //24MHz的IRC参数寄存器 0xFB
+  28          #define IRC_22M (*((uint8  idata*)0xFA))
+  29          #define IRC_24M (*((uint8  idata*)0xFB))
+  30          
+  31          
+  32          //系统频率变量
+  33          uint32 sys_clk = 0;
+  34          
+  35          
+  36          //--------------------------------------------------------------------------------------------------------
+             ------------
+  37          //  @brief      获取系统频率
+  38          //  @param      NULL            空值
+  39          //  @return     void          系统频率
+  40          //  Sample usage:               
+  41          //--------------------------------------------------------------------------------------------------------
+             ------------
+  42          uint32 get_clk(void)
+  43          {
+  44   1        uint32 temp_count;
+  45   1      
+  46   1        P_SW2 |= 0x80;
+  47   1        
+  48   1        if(IRCBAND)
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 2   
+
+  49   1          temp_count = 36000000UL + ((IRTRIM - IRC_22M) * 0x128E0UL); //频率的偏差,计算出大概数据
+  50   1        else
+  51   1          temp_count = 24000000UL + ((IRTRIM - IRC_24M) * 0xBB80UL);  //频率的偏差,计算出大概数据
+  52   1        
+  53   1          temp_count /= CLKDIV;                                     //频率太低需要分频
+  54   1        
+  55   1        if  (temp_count < 5764800UL)
+  56   1          return 5529600UL;
+  57   1        else if(temp_count < 8529600UL)
+  58   1          return 6000000UL;
+  59   1        else if(temp_count < 11529600UL)
+  60   1          return 11059200UL;
+  61   1        else if(temp_count < 15216000UL)
+  62   1          return  12000000UL;
+  63   1        else if(temp_count < 19216000UL)
+  64   1          return  18432000UL;
+  65   1        else if(temp_count < 21059200UL)
+  66   1          return  20000000UL;
+  67   1        else if(temp_count < 23059200UL)
+  68   1          return  22118400UL;
+  69   1        else if(temp_count < 25500000UL)
+  70   1          return  24000000UL;
+  71   1        else if(temp_count < 28500000UL)
+  72   1          return  27000000UL;
+  73   1        else if(temp_count < 31500000UL)
+  74   1          return  30000000UL;
+  75   1        else if(temp_count < 33500000UL)
+  76   1          return  33177600UL;
+  77   1        else
+  78   1          return  35000000UL;
+  79   1      
+  80   1      }
+  81          
+  82          
+  83          //--------------------------------------------------------------------------------------------------------
+             ------------
+  84          //  @brief      初始化内部寄存器
+  85          //  @param      NULL            空值
+  86          //  @return     void          系统频率
+  87          //  Sample usage:               
+  88          //--------------------------------------------------------------------------------------------------------
+             ------------
+  89          void board_init(void)
+  90          {
+  91   1        
+  92   1      //获取系统频率
+  93   1      #if (0 == FOSC)
+  94   1        sys_clk = get_clk();
+  95   1      #else
+                sys_clk = FOSC;
+              #endif
+  98   1        
+  99   1      #if (1 == EXTERNAL_CRYSTA_ENABLE)
+                P_SW2 = 0x80;
+                XOSCCR = 0xc0; // 启动外部晶振
+                while (!(XOSCCR & 1)); // 等待时钟稳定
+                CLKDIV = 0x00; // 时钟不分频
+                CKSEL = 0x01; // 选择外部晶振
+                P_SW2 = 0x00;
+              #endif
+ 107   1        
+ 108   1        P0M0 = 0x00;
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 3   
+
+ 109   1        P0M1 = 0x00;
+ 110   1        P1M0 = 0x00;
+ 111   1        P1M1 = 0x00;
+ 112   1        P2M0 = 0x00;
+ 113   1        P2M1 = 0x00;
+ 114   1        P3M0 = 0x00;
+ 115   1        P3M1 = 0x00;
+ 116   1        P4M0 = 0x00;
+ 117   1        P4M1 = 0x00;
+ 118   1        P5M0 = 0x00;
+ 119   1        P5M1 = 0x00;
+ 120   1        CCON = 0x00;
+ 121   1        CMOD = 0x00;      //PCA 时钟为系统时钟 /12
+ 122   1        ADCCFG = 0;
+ 123   1        AUXR = 0;
+ 124   1        SCON = 0;
+ 125   1        S2CON = 0;
+ 126   1        S3CON = 0;
+ 127   1        S4CON = 0;
+ 128   1        P_SW1 = 0;
+ 129   1        P_SW2 = 0;
+ 130   1        IE2 = 0;
+ 131   1        TMOD = 0;
+ 132   1        CL = 0;
+ 133   1        CH = 0;
+ 134   1        pca_dealy_init();   //PCA延时函数初始化
+ 135   1        //DEBUG串口初始化
+ 136   1        uart_init(DEBUG_UART, DEBUG_UART_RX_PIN, DEBUG_UART_TX_PIN, DEBUG_UART_BAUD, DEBUG_UART_TIM);
+ 137   1      }
+ 138          
+ 139          
+ 140          #if (1 == PRINTF_ENABLE)      //初始化调试串口
+ 141          //重定义printf 数字 只能输出uint16
+ 142          char putchar(char c)
+ 143          {
+ 144   1        uart_putchar(UART_1,(uint8)c);//把自己实现的串口打印一字节数据的函数替换到这里
+ 145   1        return c;
+ 146   1      }
+ 147          #endif
+ 148          
+ 149          
+ 150          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 151          //  @brief      失能外部中断
+ 152          //  @param      NULL            
+ 153          //  @return     NULL          
+ 154          //  Sample usage:               
+ 155          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 156          void DisableGlobalIRQ(void)
+ 157          {
+ 158   1        EA = 0;
+ 159   1      }
+ 160          
+ 161          //--------------------------------------------------------------------------------------------------------
+             ------------
+ 162          //  @brief      使能外部中断
+ 163          //  @param      NULL            
+ 164          //  @return     NULL          
+ 165          //  Sample usage:               
+ 166          //--------------------------------------------------------------------------------------------------------
+             ------------
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 4   
+
+ 167          void EnableGlobalIRQ(void)
+ 168          {
+ 169   1        EA = 1;
+ 170   1      }
+ 171          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    496    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      4       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
