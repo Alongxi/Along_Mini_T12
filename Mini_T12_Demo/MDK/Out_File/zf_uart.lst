@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 1   
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 21:25:46 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ZF_UART
@@ -62,7 +62,7 @@ line level    source
   45          void uart_init(UARTN_enum uart_n, UARTPIN_enum uart_rx_pin, UARTPIN_enum uart_tx_pin, uint32 baud, TIMN_en
              -um tim_n)
   46          {
-C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 2   
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 21:25:46 PAGE 2   
 
   47   1          uint16 brt;
   48   1          //65536-SYSclk/baud/4=brt
@@ -126,7 +126,7 @@ line level    source
  106   3            {
  107   4              P_SW2 |= 0x00;
  108   4            }
-C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 3   
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 21:25:46 PAGE 3   
 
  109   3            else if((UART2_RX_P46 == uart_rx_pin) && (UART2_TX_P47 == uart_tx_pin))
  110   3            {
@@ -190,7 +190,7 @@ line level    source
  168   3            P_SW2 &= ~(0x01<<2);
  169   3            if((UART4_RX_P02 == uart_rx_pin) && (UART4_TX_P03 == uart_tx_pin))
  170   3            {
-C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 4   
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 21:25:46 PAGE 4   
 
  171   4              P_SW2 |= 0x00;
  172   4            }
@@ -254,7 +254,7 @@ line level    source
  227          //  @return     void
  228          //  Sample usage:               uart_putbuff(UART_1,&a[0],5);
  229          //--------------------------------------------------------------------------------------------------------
-C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 17:17:05 PAGE 5   
+C51 COMPILER V9.59.0.0   ZF_UART                                                           07/02/2021 21:25:46 PAGE 5   
 
              ------------
  230          void uart_putbuff(UARTN_enum uart_n,uint8 *p,uint16 len)

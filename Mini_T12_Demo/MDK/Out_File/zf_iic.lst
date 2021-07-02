@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 1   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ZF_IIC
@@ -62,7 +62,7 @@ line level    source
   45          //  Sample usage:               无需用户调用，用户请使用h文件中的宏定义
   46          //--------------------------------------------------------------------------------------------------------
              ------------
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 2   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 2   
 
   47          uint8 wait(void)
   48          {
@@ -126,7 +126,7 @@ line level    source
  100          {
  101   1          uint8 ret;
  102   1          I2CMSCR = 0x03;                             //发送读ACK命令
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 3   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 3   
 
  103   1          ret = wait();
  104   1          return ret;
@@ -190,7 +190,7 @@ line level    source
  154          uint8 stop(void)
  155          {
  156   1          uint8 ret;
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 4   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 4   
 
  157   1          I2CMSCR = 0x06;                             //发送stop命令
  158   1          ret = wait();
@@ -254,7 +254,7 @@ line level    source
  212   2          case IIC_1:
  213   2              P_SW2 |= (0x00<<4); //SCL:P1.5  SDA:P1.4
  214   2              break;
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 5   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 5   
 
  215   2          case IIC_2:
  216   2              P_SW2 |= (0x01<<4); //SCL:P2.5  SDA:P2.4
@@ -318,7 +318,7 @@ line level    source
  272   2              P_SW2 |= (0x03<<4); //SCL:P3.2  SDA:P3.3
  273   2              break;
  274   2          }
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 6   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 6   
 
  275   1      
  276   1        if(start() != IIC_SEND_OK)
@@ -382,7 +382,7 @@ line level    source
  331   2              P_SW2 |= (0x01<<4); //SCL:P2.5  SDA:P2.4
  332   2              break;
  333   2          case IIC_3:
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 7   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 7   
 
  334   2              P_SW2 |= (0x02<<4); //SCL:P7.7  SDA:P7.6
  335   2              break;
@@ -446,7 +446,7 @@ line level    source
  391   1        sda_pin = sda_pin;
  392   1          P_SW2 |= 1<<7;  //将EAXFR寄存器置1，这样才能使用特殊功能寄存器为扩展SFR，访问逻辑地址位于 XDATA 区域
  393   1        
-C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 17:17:05 PAGE 8   
+C51 COMPILER V9.59.0.0   ZF_IIC                                                            07/02/2021 21:25:46 PAGE 8   
 
  394   1        P_SW2 &= ~(0x03<<4);  //清除引脚切换位
  395   1          switch(iic_n) 

@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 1   
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 21:25:47 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ZF_PWM
@@ -62,7 +62,7 @@ line level    source
   45   1        freq_div = (sys_clk/freq)>>15;
   46   1        
   47   1      //  if(freq_div >= 15) printf("ÆµÂÊÌ«µÍ");
-C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 2   
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 21:25:47 PAGE 2   
 
   48   1        
   49   1        period_temp = sys_clk/freq/(freq_div + 1);    //ÖÜÆÚ
@@ -126,7 +126,7 @@ line level    source
   96          //  @return     void
   97          //  Sample usage:           pwm_duty(PWM0_P00, 5000);     //³õÊ¼»¯PWM0  Ê¹ÓÃÒý½ÅP0.0  Êä³öPWMÆµÂÊ50HZ   Õ¼
              -¿Õ±ÈÎª°Ù·ÖÖ® 5000/PWM_DUTY_MAX*100
-C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 3   
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 21:25:47 PAGE 3   
 
   98          //              PWM_DUTY_MAXÔÚfsl_pwm.hÎÄ¼þÖÐ Ä¬ÈÏÎª50000
   99          //--------------------------------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ line level    source
  148   1        if(pwmch < PWM3_P30)
  149   1        {
  150   2          (*(unsigned char volatile xdata *)(0xFF02 + 0x50 * (pwmch>>4))) = freq_div;             //ÉèÖÃpwmnÆµÂÊÎª ÏµÍ³Ê
-C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 17:17:05 PAGE 4   
+C51 COMPILER V9.59.0.0   ZF_PWM                                                            07/02/2021 21:25:47 PAGE 4   
 
              -±ÖÓ/freq_div
  151   2          (*(unsigned int  volatile xdata *)(0xFF00 + 0x50 * (pwmch>>4))) = period_temp;            //ÉèÖÃPWMnÖÜÆÚÎªper

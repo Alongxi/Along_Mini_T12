@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   ZF_ADC                                                            07/02/2021 17:17:05 PAGE 1   
+C51 COMPILER V9.59.0.0   ZF_ADC                                                            07/02/2021 21:25:46 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ZF_ADC
@@ -62,7 +62,7 @@ line level    source
   45   2          P1M0 &= ~(1 << (adcn & 0x07));
   46   2            P1M1 |= (1 << (adcn & 0x07));
   47   2        }
-C51 COMPILER V9.59.0.0   ZF_ADC                                                            07/02/2021 17:17:05 PAGE 2   
+C51 COMPILER V9.59.0.0   ZF_ADC                                                            07/02/2021 21:25:46 PAGE 2   
 
   48   1      
   49   1        ADCCFG |= speed&0x0F; //ADCÊ±ÖÓÆµÂÊSYSclk/2/speed&0x0F;

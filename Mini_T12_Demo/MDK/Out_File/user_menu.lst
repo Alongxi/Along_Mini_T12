@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 1   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_MENU
@@ -62,7 +62,7 @@ line level    source
   50          int8 last_left = 0;
   51          int8 last_hide = 0;
   52          int8 last_center = 0;
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 2   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 2   
 
   53          int8 last_right = 0;
   54          //----------------------//
@@ -126,7 +126,7 @@ line level    source
  112              {
  113                  {75,5,53,48},//"分数设定",
  114                  {76,5,53,48},//"秒数设定",
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 3   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 3   
 
  115                  {49,50,102,103},//休眠开关
  116                  {103,110,51,52},//关机时间
@@ -190,7 +190,7 @@ line level    source
  174              {1023,1023,1023,1023,1023,1023,1023},
  175              {4,30,1},//协议设置
  176              {1,1},
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 4   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 4   
 
  177          };
  178          uint8 data save_data_A[32] = {0};
@@ -254,7 +254,7 @@ line level    source
  236   1              //if((TEMP_SET_INIT_FLAG == 1)&&(SLEEP_INIT_FLAG == 0))
  237   1          {
  238   2              if(Strong_temp_flag == 1)
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 5   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 5   
 
  239   2              {
  240   3                  show_IMG16x16(4,0,5);//强温模式
@@ -318,7 +318,7 @@ line level    source
  298   1          //----------------------------------------------------------//
  299   1          //save_data[6] = page_two_data[2][0];//数据存贮
  300   1          //save_data[7] = page_two_data[2][1];//恢复出厂
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 6   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 6   
 
  301   1          save_data_A[8] = page_two_data[2][2];//蜂鸣开关
  302   1          save_data_A[9] = page_two_data[2][3];//音量大小
@@ -382,7 +382,7 @@ line level    source
  360   1          page_two_data[1][0] = save_data_A[3];//
  361   1          page_two_data[1][1] = save_data_A[4];
  362   1          page_two_data[1][2] = save_data_A[5];//亮度
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 7   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 7   
 
  363   1      //
  364   1          // page_two_data[2][0];//数据存贮
@@ -446,7 +446,7 @@ line level    source
  422   1          if(page_two_data[1][2] > 0)
  423   1          {
  424   2              OLED_WR_Byte(0x81,OLED_CMD);//设置对比度
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 8   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 8   
 
  425   2              OLED_WR_Byte(page_two_data[1][2],OLED_CMD);
  426   2          }
@@ -510,7 +510,7 @@ line level    source
  484   1          {
  485   2              if(row_derection == 1)
  486   2              {
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 9   
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 9   
 
  487   3                  row_speed = 1;
  488   3              }
@@ -574,7 +574,7 @@ line level    source
  546   4                      last_hide = 0;
  547   4                  }
  548   3                  Draw_IMG34x24(-14+i,1, last_left);
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 10  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 10  
 
  549   3                  Draw_IMG34x24(20+i,1, last_center);
  550   3                  Draw_IMG34x24(54+i,1, last_right);
@@ -638,7 +638,7 @@ line level    source
  608   4                      Draw_IMG42X32_limit(-26+i,0, last_left,mode);
  609   4                      Draw_IMG42X32_limit(16+i,0, last_center,mode);
  610   4                      Draw_IMG42X32_limit(58+i,0, last_right,mode);
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 11  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 11  
 
  611   4                      Draw_IMG42X32_limit(100+i,0, last_hide,mode);
  612   4                  }
@@ -702,7 +702,7 @@ line level    source
  670   1      
  671   1          if(page_2_down[what_page] >page_two_num_max[what_page] - 1)
  672   1          {
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 12  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 12  
 
  673   2              page_2_down[what_page] = 0;
  674   2          }
@@ -766,7 +766,7 @@ line level    source
  732   4                  case 0:
  733   4                      OLED_ShowString(80,1,"  No",16);
  734   4                      break;
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 13  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 13  
 
  735   4                  case 1:
  736   4                      OLED_ShowString(80,1," Yes",16);
@@ -830,7 +830,7 @@ line level    source
  794   2          case 4:
  795   2              OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
  796   2              break;
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 14  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 14  
 
  797   2          case 5:
  798   2              OLED_ShowNum(80,1,page_two_data[what_page][page_2_center[what_page]],4,16);
@@ -894,7 +894,7 @@ line level    source
  856   3              case 1:
  857   3                  switch(page_two_data[what_page][page_2_center[what_page]])//二级菜单对应数据数值
  858   3                  {
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 15  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 15  
 
  859   4                  case 0:
  860   4                      OLED_ShowString(80,1," L&R",16);
@@ -958,7 +958,7 @@ line level    source
  918   3                  data_transmit();
  919   3                  eeprom_erase(0x40);
  920   3                  eeprom_write(0x00,save_data_A,32);
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 16  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 16  
 
  921   3                  eeprom_write(0x20,save_data_B,32);
  922   3                  page_two_data[2][0] = 0;
@@ -1022,7 +1022,7 @@ line level    source
  980   4                  }
  981   3                  else
  982   3                  {
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 17  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 17  
 
  983   4                      row_speed = 4;
  984   4                  }
@@ -1086,7 +1086,7 @@ line level    source
 1042   3              }
 1043   2              else if(menu_flag == 2)
 1044   2              {
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 18  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 18  
 
 1045   3                  if(select_flag == 0)
 1046   3                  {
@@ -1150,7 +1150,7 @@ line level    source
 1100   5                      }
 1101   4                  }
 1102   3              }
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 19  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 19  
 
 1103   2              //
 1104   2              up_short_flag = 0;
@@ -1214,7 +1214,7 @@ line level    source
 1158   1          if(down_short_flag == 1)
 1159   1          {
 1160   2      
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 20  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 20  
 
 1161   2              //function
 1162   2              if(menu_flag == 0)//在主界面时按下up键
@@ -1278,7 +1278,7 @@ line level    source
 1216   3                  {
 1217   4                      Temp_Set = IRON_TEMP_SET_MAX;
 1218   4      
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 21  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 21  
 
 1219   4                  }
 1220   3                  else if(Temp_Set <= IRON_TEMP_SET_MIN)
@@ -1342,7 +1342,7 @@ line level    source
 1274   1          pwm_out_get();//获取pwm输出值
 1275   1          BEEP_handle();
 1276   1          OLED_OFF_handle();
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 22  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 22  
 
 1277   1          if(menu_flag == 0)
 1278   1          {
@@ -1406,7 +1406,7 @@ line level    source
 1336   2          }
 1337   1          else if(menu_flag == 2)//
 1338   1          {
-C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 17:17:07 PAGE 23  
+C51 COMPILER V9.59.0.0   USER_MENU                                                         07/02/2021 21:25:48 PAGE 23  
 
 1339   2              if(page_flag == 8)
 1340   2              {

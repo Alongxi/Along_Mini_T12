@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 17:17:06 PAGE 1   
+C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 21:25:48 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ISR
@@ -62,7 +62,7 @@ line level    source
   48          //UART2ÖÐ¶Ï
   49          void Uart2Isr() interrupt 8
   50          {
-C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 17:17:06 PAGE 2   
+C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 21:25:48 PAGE 2   
 
   51   1          if (S2CON & 0x02)
   52   1          {
@@ -126,7 +126,7 @@ line level    source
  110   2              ccp_value[0] += pca_time_ms[0];
  111   2      
  112   2      
-C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 17:17:06 PAGE 3   
+C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 21:25:48 PAGE 3   
 
  113   2          }
  114   1      
@@ -190,7 +190,7 @@ MODULE INFORMATION:   STATIC OVERLAYABLE
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
-C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 17:17:06 PAGE 4   
+C51 COMPILER V9.59.0.0   ISR                                                               07/02/2021 21:25:48 PAGE 4   
 
    BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.

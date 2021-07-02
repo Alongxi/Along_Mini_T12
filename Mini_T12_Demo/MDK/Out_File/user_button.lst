@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 1   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE USER_BUTTON
@@ -62,7 +62,7 @@ line level    source
   50          int16 oled_off_second = 0;//自动关机时间
   51          int16 shutdown_cont = 0;
   52          int16 shutdown_second = 0;//自动关机时间
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 2   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 2   
 
   53          
   54          uint8  mode_flag = 0;//模式标志位
@@ -126,7 +126,7 @@ line level    source
  112   2              down_flag = 1;
  113   2          }
  114   1          else
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 3   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 3   
 
  115   1          {
  116   2              down_flag = 0;
@@ -190,7 +190,7 @@ line level    source
  174   1          //--------------------------------------------------------//
  175   1      
  176   1          if(up_flag == 1)
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 4   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 4   
 
  177   1          {
  178   2              if(key_up == 0)
@@ -254,7 +254,7 @@ line level    source
  236   4                      key_hold_ms = 0;
  237   4                      down_short_flag = 1;
  238   4                      BEEP_flag = 1;
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 5   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 5   
 
  239   4                      down_flag = 0;
  240   4                  }
@@ -318,7 +318,7 @@ line level    source
  298   2              if(oled_off_on_flag == 1)
  299   2              {
  300   3                  olde_off_cont ++;
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 6   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 6   
 
  301   3                 if(olde_off_cont == 100)//一秒钟
  302   3                  {
@@ -382,7 +382,7 @@ line level    source
  359   1          AUXINTIF &= ~0x04;                          //清中断标志
  360   1      }
  361          void TM3_Isr() interrupt 19
-C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 17:17:07 PAGE 7   
+C51 COMPILER V9.59.0.0   USER_BUTTON                                                       07/02/2021 21:25:49 PAGE 7   
 
  362          {
  363   1          if(BEEP_flag == 1)

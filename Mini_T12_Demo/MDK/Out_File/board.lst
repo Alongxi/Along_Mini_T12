@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 1   
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 21:25:46 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BOARD
@@ -62,7 +62,7 @@ line level    source
   46   1        P_SW2 |= 0x80;
   47   1        
   48   1        if(IRCBAND)
-C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 2   
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 21:25:46 PAGE 2   
 
   49   1          temp_count = 36000000UL + ((IRTRIM - IRC_22M) * 0x128E0UL); //频率的偏差,计算出大概数据
   50   1        else
@@ -126,7 +126,7 @@ line level    source
               #endif
  107   1        
  108   1        P0M0 = 0x00;
-C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 3   
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 21:25:46 PAGE 3   
 
  109   1        P0M1 = 0x00;
  110   1        P1M0 = 0x00;
@@ -190,7 +190,7 @@ line level    source
  165          //  Sample usage:               
  166          //--------------------------------------------------------------------------------------------------------
              ------------
-C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 17:17:05 PAGE 4   
+C51 COMPILER V9.59.0.0   BOARD                                                             07/02/2021 21:25:46 PAGE 4   
 
  167          void EnableGlobalIRQ(void)
  168          {
