@@ -1,0 +1,77 @@
+#include "headfile.h"
+#include "user_pid.h"
+
+
+/*{//国产头
+			//0		//100		//200		//300		//400		//500		//600
+			0 ,		114 ,		210,		340,		490,		550,		675,
+};
+*/
+uint8 pwm_flag = 0;
+
+//uint8 error_flag = 0;
+
+int pwm_duty_out = 0;
+
+//定义初始值
+
+float		Integration = 0;	//积分量
+float   Ek[3];//定义误差值
+float		Temp_Set = 200;					//设定值
+float 	Feedback = 0;			//反馈值
+float		Pwmduty_Out = 0;					//输出的pwm占空比
+
+void ALL_PWM_init()
+{
+	  pwm_init(PWM_control, 400, 0);
+    pwm_init(BEEP, 4000, 0);
+}
+
+
+float iron_temp_control(float set_temp,float get_temp)//
+{
+	float pwm_out;//由于
+	if(get_temp < set_temp*0.9)
+	{
+		pwm_out == 10000;
+	}
+		else
+		{
+	Ek[0] = set_temp - get_temp;
+	Integration += Ek[0];
+	if(Integration > 100) Integration = 100;//对积分值限幅
+	if(Integration <=100) Integration = -100;
+	pwm_out = 1000*(kP*Ek[0] + kI*Integration + kD*(Ek[1] -Ek[0]));//位置式PID
+
+	//pwm_out = kP*Ek[0] + kI*Ek[1] + kD*Ek[2];
+	//(PID->Kp * PID->Ek) - (PID->Ki * PID->Ek1) + (PID->Kd * PID->Ek2)
+	Ek[2] = Ek[1];//上上次误差值
+	Ek[1] = Ek[0];//将本次误差值赋值到上一次误差
+		}
+				if(pwm_out > 10000)
+		{
+			pwm_out = 10000.0;
+		}
+		else if(pwm_out < 0)
+		{
+			pwm_out = 0;
+		}
+	return pwm_out;
+	//PID->Kp * PID->Ek + (PID->Ki * PID->LocSum) + PID->Kd * (PID->Ek1 - PID->Ek);
+}
+void pwm_out_get()
+{
+		pwm_duty_out = iron_temp_control(Temp_Set,Iron_temp_now);
+
+		if(pwm_flag == 1)
+		{
+			pwm_duty(PWM_control, (int)pwm_duty_out);
+			
+		}
+		else if(pwm_flag == 0)
+		{
+			pwm_duty(PWM_control, 0);
+			
+		}
+
+}
