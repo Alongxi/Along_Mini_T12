@@ -1,7 +1,7 @@
 # Along_Mini_T12
 基于STC8G2K64S4处理器的智能恒温烙铁
 
-官方网址：www.alongxii.xyz
+官方网址：www.alongxii.xyz。
 ***软件作者：Along***
 ***QQ：1259306443***
 ***邮箱：alongxii@outlook.com/1259306443@qq.com***
