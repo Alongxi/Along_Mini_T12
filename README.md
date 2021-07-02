@@ -45,7 +45,7 @@
 
 具体设置使用方法在www.alongxii.xyz中有详细介绍。
 
-后续网址可能会更替为www.alongxii.com/www.alongxii.cn。
+后续网址可能会更替为www.alongxii.com/www.alongxii.cn
 
 源码相关文件介绍：
 
